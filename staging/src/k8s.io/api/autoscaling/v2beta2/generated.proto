@@ -64,6 +64,42 @@ message ExternalMetricStatus {
   optional MetricValueStatus current = 2;
 }
 
+// HPAScalingBehavior configures a scaling behavior for Up and Down direction
+// (scaleUp and scaleDown fields respectively)
+message HPAScalingBehavior {
+  // StabilizationWindowSeconds is the number of seconds for which past recommendations should be considered while
+  // scaling down
+  // +optional
+  optional int32 stabilizationWindowSeconds = 3;
+
+  // constraint value for scaling Up
+  // +optional
+  optional HPAScalingDirectionBehavior scaleUp = 1;
+
+  // constraint value for scaling Down
+  // +optional
+  optional HPAScalingDirectionBehavior scaleDown = 2;
+}
+
+// HPAScalingDirectionBehavior configures the scaling policy and the policy selector
+message HPAScalingDirectionBehavior {
+  // SelectPolicy is used to specify which policy should be used
+  // +optional
+  optional string selectPolicy = 1;
+
+  // Policies is a list of potential scaling polices which can used during scaling
+  // +optional
+  repeated HPAScalingPolicy policies = 2;
+}
+
+message HPAScalingPolicy {
+  optional string type = 1;
+
+  optional int32 value = 2;
+
+  optional int32 periodSeconds = 3;
+}
+
 // HorizontalPodAutoscaler is the configuration for a horizontal pod
 // autoscaler, which automatically manages the replica count of any resource
 // implementing the scale subresource based on the metrics specified.
@@ -145,6 +181,10 @@ message HorizontalPodAutoscalerSpec {
   // If not set, the default metric will be set to 80% average CPU utilization.
   // +optional
   repeated MetricSpec metrics = 4;
+
+  // Behaviour contains the scaling behavior for the HPA
+  // +optional
+  optional HPAScalingBehavior behavior = 5;
 }
 
 // HorizontalPodAutoscalerStatus describes the current status of a horizontal pod autoscaler.

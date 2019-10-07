@@ -72,6 +72,9 @@ type HorizontalPodAutoscalerSpec struct {
 	// If not set, the default metric will be set to 80% average CPU utilization.
 	// +optional
 	Metrics []MetricSpec `json:"metrics,omitempty" protobuf:"bytes,4,rep,name=metrics"`
+	// Behaviour contains the scaling behavior for the HPA
+	// +optional
+	Behavior *HPAScalingBehavior `json:"behavior,omitempty" protobuf:"bytes,5,opt,name=behavior"`
 }
 
 // CrossVersionObjectReference contains enough information to let you identify the referred resource.
@@ -115,6 +118,53 @@ type MetricSpec struct {
 	// QPS from loadbalancer running outside of cluster).
 	// +optional
 	External *ExternalMetricSource `json:"external,omitempty" protobuf:"bytes,5,opt,name=external"`
+}
+
+// HPAScalingBehavior configures a scaling behavior for Up and Down direction
+// (scaleUp and scaleDown fields respectively)
+type HPAScalingBehavior struct {
+	// StabilizationWindowSeconds is the number of seconds for which past recommendations should be considered while
+	// scaling down
+	// +optional
+	StabilizationWindowSeconds *int32 `json:"stabilizationWindowSeconds" protobuf:"varint,3,opt,name=stabilizationWindowSeconds"`
+	// constraint value for scaling Up
+	// +optional
+	ScaleUp *HPAScalingDirectionBehavior `json:"scaleUp,omitempty" protobuf:"bytes,1,opt,name=scaleUp"`
+	// constraint value for scaling Down
+	// +optional
+	ScaleDown *HPAScalingDirectionBehavior `json:"scaleDown,omitempty" protobuf:"bytes,2,opt,name=scaleDown"`
+}
+
+type ScalingPolicySelect string
+
+const (
+	// MaxPolicySelect selects the policy with the highest possible change
+	MaxPolicySelect ScalingPolicySelect = "max"
+	// MinPolicySelect selects the policy with the lowest possible change
+	MinPolicySelect ScalingPolicySelect = "min"
+)
+
+// HPAScalingDirectionBehavior configures the scaling policy and the policy selector
+type HPAScalingDirectionBehavior struct {
+	// SelectPolicy is used to specify which policy should be used
+	// +optional
+	SelectPolicy *ScalingPolicySelect `json:"selectPolicy,omitempty" protobuf:"bytes,1,opt,name=selectPolicy"`
+	// Policies is a list of potential scaling polices which can used during scaling
+	// +optional
+	Policies []HPAScalingPolicy `json:"policies,omitempty" protobuf:"bytes,2,rep,name=policies"`
+}
+
+type HPABehaviorScalingPolicyType string
+
+const (
+	PodsScalingPolicy    HPABehaviorScalingPolicyType = "pods"
+	PercentScalingPolicy HPABehaviorScalingPolicyType = "percent"
+)
+
+type HPAScalingPolicy struct {
+	Type          HPABehaviorScalingPolicyType `json:"type" protobuf:"bytes,1,opt,name=type,casttype=HPABehaviorScalingPolicyType"`
+	Value         int32                        `json:"value" protobuf:"varint,2,opt,name=value"`
+	PeriodSeconds int32                        `json:"periodSeconds" protobuf:"varint,3,opt,name=periodSeconds"`
 }
 
 // MetricSourceType indicates the type of metric.
