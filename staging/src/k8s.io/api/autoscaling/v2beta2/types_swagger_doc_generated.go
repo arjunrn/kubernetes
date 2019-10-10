@@ -58,6 +58,17 @@ func (ExternalMetricStatus) SwaggerDoc() map[string]string {
 	return map_ExternalMetricStatus
 }
 
+var map_HPAScalingPolicy = map[string]string{
+	"":              "HPAScalingPolicy is a single policy which must hold true for a specified past interval.",
+	"type":          "Type is used to specify the scaling policy.",
+	"value":         "Value contains the amount of change which is permitted by the policy.",
+	"periodSeconds": "PeriodSeconds specifies the window of time for which the policy should hold true.",
+}
+
+func (HPAScalingPolicy) SwaggerDoc() map[string]string {
+	return map_HPAScalingPolicy
+}
+
 var map_HPAScalingRules = map[string]string{
 	"":                           "HPAScalingRules configures the scaling policy and the policy selector",
 	"stabilizationWindowSeconds": "StabilizationWindowSeconds is the number of seconds for which past recommendations should be considered while scaling up or scaling down",

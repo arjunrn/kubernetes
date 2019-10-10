@@ -64,11 +64,15 @@ message ExternalMetricStatus {
   optional MetricValueStatus current = 2;
 }
 
+// HPAScalingPolicy is a single policy which must hold true for a specified past interval.
 message HPAScalingPolicy {
+  // Type is used to specify the scaling policy.
   optional string type = 1;
 
+  // Value contains the amount of change which is permitted by the policy.
   optional int32 value = 2;
 
+  // PeriodSeconds specifies the window of time for which the policy should hold true.
   optional int32 periodSeconds = 3;
 }
 
