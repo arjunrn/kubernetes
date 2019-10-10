@@ -932,35 +932,9 @@ func copyHPABehavior(from, to *autoscalingv2.HPAScalingRules) *autoscalingv2.HPA
 		to.StabilizationWindowSeconds = from.StabilizationWindowSeconds
 	}
 	if from.Policies != nil {
-		for _, policy := range from.Policies {
-			copyHPAScalingPolicy(policy, to)
-		}
+		to.Policies = from.Policies
 	}
 	return to
-}
-
-// copyHPAScalingPolicy copies values from a policy to Scaling Behaviour for the same policy type
-func copyHPAScalingPolicy(sourcePolicy autoscalingv2.HPAScalingPolicy, to *autoscalingv2.HPAScalingRules) {
-	found := false
-	for idx := range to.Policies {
-		if to.Policies[idx].Type != sourcePolicy.Type {
-			continue
-		}
-		found = true
-		if sourcePolicy.Value != nil {
-			to.Policies[idx].Value = sourcePolicy.Value
-		}
-		if sourcePolicy.PeriodSeconds != nil {
-			to.Policies[idx].PeriodSeconds = sourcePolicy.PeriodSeconds
-		}
-		break
-	}
-	// for scaling down we have a policy only for `percent`.
-	// So if the users adds policy for `pods`, we would not be able to find it in the previous loop
-	// And so we should append it
-	if found == false {
-		to.Policies = append(to.Policies, sourcePolicy)
-	}
 }
 
 // convertDesiredReplicasWithBehaviorRate performs the actual normalization, given the constraint rate
@@ -988,7 +962,7 @@ func (a *HorizontalController) convertDesiredReplicasWithBehaviorRate(args Norma
 			return maximumAllowedReplicas, possibleLimitingReason, possibleLimitingMessage
 		}
 	} else if args.DesiredReplicas < args.CurrentReplicas {
-		scaleDownLimit := calculateScaleDownLimitWithBehaviors(args.CurrentReplicas, a.scaleDownEvents[args.Key], *args.ScaleDownBehavior)
+		scaleDownLimit := calculateScaleDownLimitWithBehaviors(args.CurrentReplicas, a.scaleDownEvents[args.Key], args.ScaleDownBehavior)
 		if scaleDownLimit > args.CurrentReplicas {
 			// We scaled down a lot during rate.PeriodSeconds, but then we changed the rate.Pods
 			// We shouldn't scale down further until the scaleDownEvents will be cleaned up
@@ -1069,10 +1043,10 @@ func calculateScaleUpLimitWithBehaviors(currentReplicas int32, scaleEvents []tim
 	var result int32 = 0
 	var proposed int32
 	var selectPolicyFn func(int32, int32) int32
-	if *behavior.SelectPolicy == autoscalingv2.MaxPolicySelect {
-		selectPolicyFn = max // for scaling up maximum change produces maximum value
-	} else if *behavior.SelectPolicy == autoscalingv2.MinPolicySelect {
-		selectPolicyFn = min
+	if *behavior.SelectPolicy == autoscalingv2.MinPolicySelect {
+		selectPolicyFn = min // for scaling up minimum change produces minimum value
+	} else {
+		selectPolicyFn = max // use the default maximum policy otherwise
 	}
 	for _, policy := range behavior.Policies {
 		replicasAddedInCurrentPeriod := getReplicasChangePerPeriod(*policy.PeriodSeconds, scaleEvents)
@@ -1080,7 +1054,8 @@ func calculateScaleUpLimitWithBehaviors(currentReplicas int32, scaleEvents []tim
 		if policy.Type == autoscalingv2.PodsScalingPolicy {
 			proposed = int32(periodStartReplicas + *policy.Value)
 		} else if policy.Type == autoscalingv2.PercentScalingPolicy {
-			proposed = int32(float64(periodStartReplicas) * (1 + float64(*policy.Value)/100))
+			// the proposal has to be rounded up because the proposed change might not increase the replica count causing the target to never scale up
+			proposed = int32(math.Ceil(float64(periodStartReplicas) * (1 + float64(*policy.Value)/100)))
 		}
 		result = selectPolicyFn(result, proposed)
 	}
@@ -1090,14 +1065,14 @@ func calculateScaleUpLimitWithBehaviors(currentReplicas int32, scaleEvents []tim
 // calculateScaleDownLimit returns the maximum number of pods that could be deleted for the given rate
 // For scaling down both rate.Pods and rate.Percent could be nil, it means that we allow to remove all the pods
 // Check defaultHPAScaleDownBehavior for default values
-func calculateScaleDownLimitWithBehaviors(currentReplicas int32, scaleEvents []timestampedScaleEvent, behavior autoscalingv2.HPAScalingRules) int32 {
+func calculateScaleDownLimitWithBehaviors(currentReplicas int32, scaleEvents []timestampedScaleEvent, behavior *autoscalingv2.HPAScalingRules) int32 {
 	var result int32 = math.MaxInt32
 	var proposed int32
 	var selectPolicyFn func(int32, int32) int32
-	if *behavior.SelectPolicy == autoscalingv2.MaxPolicySelect {
-		selectPolicyFn = min // for scaling down maximum change produces minimum value
-	} else if *behavior.SelectPolicy == autoscalingv2.MinPolicySelect {
-		selectPolicyFn = min
+	if *behavior.SelectPolicy == autoscalingv2.MinPolicySelect {
+		selectPolicyFn = max // for scaling down minimum change produces maximum value
+	} else {
+		selectPolicyFn = min // use the default policy otherwise
 	}
 	for _, policy := range behavior.Policies {
 		replicasDeletedInCurrentPeriod := getReplicasChangePerPeriod(*policy.PeriodSeconds, scaleEvents)

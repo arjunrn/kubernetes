@@ -114,6 +114,7 @@ type HorizontalPodAutoscalerBehavior struct {
 	ScaleDown *HPAScalingRules
 }
 
+// ScalingPolicySelect is used to specify which policy should be used while scaling in a certain direction
 type ScalingPolicySelect string
 
 const (
@@ -137,6 +138,7 @@ type HPAScalingRules struct {
 	Policies []HPAScalingPolicy
 }
 
+// HPAScalingPolicyType is the type of the policy which could be used while making scaling decisions
 type HPAScalingPolicyType string
 
 const (

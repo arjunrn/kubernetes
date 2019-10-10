@@ -131,6 +131,7 @@ type HorizontalPodAutoscalerBehavior struct {
 	ScaleDown *HPAScalingRules `json:"scaleDown,omitempty" protobuf:"bytes,2,opt,name=scaleDown"`
 }
 
+// ScalingPolicySelect is used to specify which policy should be used while scaling in a certain direction
 type ScalingPolicySelect string
 
 const (
@@ -154,6 +155,7 @@ type HPAScalingRules struct {
 	Policies []HPAScalingPolicy `json:"policies,omitempty" protobuf:"bytes,2,rep,name=policies"`
 }
 
+// HPAScalingPolicyType is the type of the policy which could be used while making scaling decisions
 type HPAScalingPolicyType string
 
 const (

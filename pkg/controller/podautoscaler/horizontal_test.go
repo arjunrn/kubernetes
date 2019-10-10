@@ -2971,24 +2971,100 @@ func TestConvertDesiredReplicasWithRules(t *testing.T) {
 	}
 }
 
-func TestConvertDesiredReplicasConstrainedWithRules(t *testing.T) {
+func TestConvertDesiredReplicasWithBehavior(t *testing.T) {
 	conversionTestCases := []struct {
 		currentReplicas                  int32
-		expectedDesiredReplicas          int32
+		desiredReplicas                  int32
 		hpaMinReplicas                   int32
 		hpaMaxReplicas                   int32
 		expectedConvertedDesiredReplicas int32
 		expectedCondition                string
 		annotation                       string
+		scaleUpBehavior                  *autoscalingv2.HPAScalingRules
+		scaleDownBehavior                *autoscalingv2.HPAScalingRules
+		isLimited                        bool
 	}{
 		{
+			currentReplicas:                  5,
+			desiredReplicas:                  7,
+			hpaMinReplicas:                   3,
+			hpaMaxReplicas:                   8,
+			expectedConvertedDesiredReplicas: 7,
+			expectedCondition:                "DesiredWithinRange",
+			annotation:                       "prenormalized desired replicas within range",
+		},
+		{
 			currentReplicas:                  3,
-			expectedDesiredReplicas:          1000,
+			desiredReplicas:                  1,
+			hpaMinReplicas:                   2,
+			hpaMaxReplicas:                   8,
+			expectedConvertedDesiredReplicas: 2,
+			expectedCondition:                "TooFewReplicas",
+			annotation:                       "prenormalized desired replicas < minReplicas",
+		},
+		{
+			currentReplicas:                  1,
+			desiredReplicas:                  0,
+			hpaMinReplicas:                   0,
+			hpaMaxReplicas:                   10,
+			expectedConvertedDesiredReplicas: 0,
+			expectedCondition:                "DesiredWithinRange",
+			annotation:                       "prenormalized desired replicas within range",
+		},
+		{
+			currentReplicas:                  20,
+			desiredReplicas:                  1000,
+			hpaMinReplicas:                   1,
+			hpaMaxReplicas:                   10,
+			expectedConvertedDesiredReplicas: 10,
+			expectedCondition:                "TooManyReplicas",
+			annotation:                       "maxReplicas is the limit because maxReplicas < scaleUpLimit",
+		},
+		{
+			currentReplicas:                  100,
+			desiredReplicas:                  1000,
+			hpaMinReplicas:                   100,
+			hpaMaxReplicas:                   200,
+			expectedConvertedDesiredReplicas: 200,
+			expectedCondition:                "TooManyReplicas",
+			annotation:                       "the desired replica count is more than the maximum replica count",
+		},
+		{
+			currentReplicas:                  3,
+			desiredReplicas:                  1000,
 			hpaMinReplicas:                   1,
 			hpaMaxReplicas:                   2000,
-			expectedConvertedDesiredReplicas: calculateScaleUpLimitWithBehaviors(3, []timestampedScaleEvent{}, generateHPAScaleUpBehavior(nil)),
+			expectedConvertedDesiredReplicas: 4,
 			expectedCondition:                "ScaleUpLimit",
-			annotation:                       "scaleUpLimit is the limit because scaleUpLimit < maxReplicas",
+			scaleUpBehavior: &autoscalingv2.HPAScalingRules{
+				Policies: []autoscalingv2.HPAScalingPolicy{
+					{
+						Type:          autoscalingv2.PercentScalingPolicy,
+						Value:         createInt32Pointer(1),
+						PeriodSeconds: createInt32Pointer(60),
+					},
+				},
+			},
+			annotation: "scaleUpLimit is the limit because scaleUpLimit < maxReplicas with user policies",
+		},
+		{
+			currentReplicas: 1000,
+			desiredReplicas: 3,
+			hpaMinReplicas:  3,
+			hpaMaxReplicas:  2000,
+			scaleDownBehavior: &autoscalingv2.HPAScalingRules{
+				Policies: []autoscalingv2.HPAScalingPolicy{
+					{
+						Value:         createInt32Pointer(20),
+						PeriodSeconds: createInt32Pointer(60),
+						Type:          autoscalingv2.PodsScalingPolicy,
+					},
+				},
+			},
+
+			expectedConvertedDesiredReplicas: 980,
+			expectedCondition:                "ScaleDownLimit",
+			annotation:                       "scaleDownLimit is the limit because scaleDownLimit > minReplicas with user defined policies",
 		},
 	}
 
@@ -2996,11 +3072,11 @@ func TestConvertDesiredReplicasConstrainedWithRules(t *testing.T) {
 		hc := HorizontalController{}
 		arg := NormalizationArg{
 			CurrentReplicas:   ctc.currentReplicas,
-			DesiredReplicas:   ctc.expectedDesiredReplicas,
+			DesiredReplicas:   ctc.desiredReplicas,
 			MinReplicas:       &ctc.hpaMinReplicas,
 			MaxReplicas:       ctc.hpaMaxReplicas,
-			ScaleUpBehavior:   generateHPAScaleUpBehavior(nil),
-			ScaleDownBehavior: generateHPAScaleDownBehavior(nil),
+			ScaleUpBehavior:   generateHPAScaleUpBehavior(ctc.scaleUpBehavior),
+			ScaleDownBehavior: generateHPAScaleDownBehavior(ctc.scaleDownBehavior),
 		}
 		actualConvertedDesiredReplicas, actualCondition, _ := hc.convertDesiredReplicasWithBehaviorRate(arg)
 
@@ -3018,6 +3094,9 @@ func createStringPointer(x string) *string {
 }
 
 func generateBehavior(pods, percent, period *int32) *autoscalingv2.HPAScalingRules {
+	if period == nil {
+		period = createInt32Pointer(60)
+	}
 	directionBehavior := autoscalingv2.HPAScalingRules{}
 	if pods != nil {
 		directionBehavior.Policies = append(directionBehavior.Policies,
@@ -3205,6 +3284,7 @@ func TestScaleRate(t *testing.T) {
 			specMinReplicas:              nil,
 			specMaxReplicas:              1000,
 			rateUpPercent:                createInt32Pointer(10000),
+			rateUpPeriodSeconds:          createInt32Pointer(60),
 			currentReplicas:              10,
 			prenormalizedDesiredReplicas: 50,
 			expectedReplicas:             50,
@@ -3214,6 +3294,7 @@ func TestScaleRate(t *testing.T) {
 			specMinReplicas:              nil,
 			specMaxReplicas:              1000,
 			rateUpPods:                   createInt32Pointer(30),
+			rateUpPeriodSeconds:          createInt32Pointer(60),
 			currentReplicas:              10,
 			prenormalizedDesiredReplicas: 50,
 			expectedReplicas:             40,
@@ -3223,6 +3304,7 @@ func TestScaleRate(t *testing.T) {
 			specMinReplicas:              nil,
 			specMaxReplicas:              1000,
 			rateUpPercent:                createInt32Pointer(200),
+			rateUpPeriodSeconds:          createInt32Pointer(60),
 			currentReplicas:              10,
 			prenormalizedDesiredReplicas: 50,
 			expectedReplicas:             30,
@@ -3556,100 +3638,39 @@ func TestGenerateScaleUpBehavior(t *testing.T) {
 			selectPolicy:            &minPolicy,
 			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
 				{Type: autoscalingv2.PodsScalingPolicy, Value: createInt32Pointer(1), PeriodSeconds: createInt32Pointer(2)},
-				{Type: autoscalingv2.PercentScalingPolicy, Value: createInt32Pointer(100), PeriodSeconds: createInt32Pointer(60)},
 			},
 			expectedSelectPolicy: "min",
-		},
-		{
-			annotation:   "Pod value is specified",
-			rateUpPods:   createInt32Pointer(1),
-			selectPolicy: &minPolicy,
-			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
-				{Type: autoscalingv2.PodsScalingPolicy, Value: createInt32Pointer(1), PeriodSeconds: createInt32Pointer(60)},
-				{Type: autoscalingv2.PercentScalingPolicy, Value: createInt32Pointer(100), PeriodSeconds: createInt32Pointer(60)},
-			},
-			expectedSelectPolicy: "min",
-		},
-		{
-			annotation:              "Pod period is specified",
-			rateUpPodsPeriodSeconds: createInt32Pointer(2),
-			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
-				{Type: autoscalingv2.PodsScalingPolicy, Value: createInt32Pointer(4), PeriodSeconds: createInt32Pointer(2)},
-				{Type: autoscalingv2.PercentScalingPolicy, Value: createInt32Pointer(100), PeriodSeconds: createInt32Pointer(60)},
-			},
-			expectedSelectPolicy: "max",
 		},
 		{
 			annotation:                 "Percent policy is specified",
 			rateUpPercent:              createInt32Pointer(7),
 			rateUpPercentPeriodSeconds: createInt32Pointer(10),
 			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
-				{Type: autoscalingv2.PodsScalingPolicy, Value: createInt32Pointer(4), PeriodSeconds: createInt32Pointer(60)},
 				{Type: autoscalingv2.PercentScalingPolicy, Value: createInt32Pointer(7), PeriodSeconds: createInt32Pointer(10)},
 			},
 			expectedSelectPolicy: "max",
 		},
 		{
-			annotation:    "Percent value is specified",
-			rateUpPercent: createInt32Pointer(7),
-			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
-				{Type: autoscalingv2.PodsScalingPolicy, Value: createInt32Pointer(4), PeriodSeconds: createInt32Pointer(60)},
-				{Type: autoscalingv2.PercentScalingPolicy, Value: createInt32Pointer(7), PeriodSeconds: createInt32Pointer(60)},
-			},
-			expectedSelectPolicy: "max",
-		},
-		{
-			annotation:                 "Percent period is specified",
-			rateUpPercentPeriodSeconds: createInt32Pointer(10),
-			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
-				{Type: autoscalingv2.PodsScalingPolicy, Value: createInt32Pointer(4), PeriodSeconds: createInt32Pointer(60)},
-				{Type: autoscalingv2.PercentScalingPolicy, Value: createInt32Pointer(100), PeriodSeconds: createInt32Pointer(10)},
-			},
-			expectedSelectPolicy: "max",
-		},
-		{
-			annotation:              "Pod period and stabiliation period are specified",
+			annotation:              "Pod policy and stabiliation period are specified",
 			rateUpPodsPeriodSeconds: createInt32Pointer(2),
 			stabilizationSeconds:    createInt32Pointer(25),
+			rateUpPods:              createInt32Pointer(4),
 			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
 				{Type: autoscalingv2.PodsScalingPolicy, Value: createInt32Pointer(4), PeriodSeconds: createInt32Pointer(2)},
-				{Type: autoscalingv2.PercentScalingPolicy, Value: createInt32Pointer(100), PeriodSeconds: createInt32Pointer(60)},
 			},
 			expectedStabilization: 25,
 			expectedSelectPolicy:  "max",
 		},
 		{
-			annotation:           "Percent value and stabilization period are specified",
-			rateUpPercent:        createInt32Pointer(7),
-			stabilizationSeconds: createInt32Pointer(25),
+			annotation:                 "Percent policy and stabilization period are specified",
+			rateUpPercent:              createInt32Pointer(7),
+			rateUpPercentPeriodSeconds: createInt32Pointer(60),
+			stabilizationSeconds:       createInt32Pointer(25),
 			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
-				{Type: autoscalingv2.PodsScalingPolicy, Value: createInt32Pointer(4), PeriodSeconds: createInt32Pointer(60)},
 				{Type: autoscalingv2.PercentScalingPolicy, Value: createInt32Pointer(7), PeriodSeconds: createInt32Pointer(60)},
 			},
 			expectedStabilization: 25,
 			expectedSelectPolicy:  "max",
-		},
-		{
-			annotation:           "Only values are specified",
-			rateUpPods:           createInt32Pointer(1),
-			rateUpPercent:        createInt32Pointer(3),
-			stabilizationSeconds: createInt32Pointer(25),
-			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
-				{Type: autoscalingv2.PodsScalingPolicy, Value: createInt32Pointer(1), PeriodSeconds: createInt32Pointer(60)},
-				{Type: autoscalingv2.PercentScalingPolicy, Value: createInt32Pointer(3), PeriodSeconds: createInt32Pointer(60)},
-			},
-			expectedStabilization: 25,
-			expectedSelectPolicy:  "max",
-		},
-		{
-			annotation:                 "Only periods are specified",
-			rateUpPodsPeriodSeconds:    createInt32Pointer(2),
-			rateUpPercentPeriodSeconds: createInt32Pointer(4),
-			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
-				{Type: autoscalingv2.PodsScalingPolicy, Value: createInt32Pointer(4), PeriodSeconds: createInt32Pointer(2)},
-				{Type: autoscalingv2.PercentScalingPolicy, Value: createInt32Pointer(100), PeriodSeconds: createInt32Pointer(4)},
-			},
-			expectedSelectPolicy: "max",
 		},
 	}
 	for _, tc := range tests {
@@ -3710,8 +3731,8 @@ func TestGenerateScaleDownBehavior(t *testing.T) {
 			stabilizationSeconds:         createInt32Pointer(25),
 			selectPolicy:                 &maxPolicy,
 			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
-				{Type: autoscalingv2.PercentScalingPolicy, Value: createInt32Pointer(3), PeriodSeconds: createInt32Pointer(4)},
 				{Type: autoscalingv2.PodsScalingPolicy, Value: createInt32Pointer(1), PeriodSeconds: createInt32Pointer(2)},
+				{Type: autoscalingv2.PercentScalingPolicy, Value: createInt32Pointer(3), PeriodSeconds: createInt32Pointer(4)},
 			},
 			expectedStabilization: 25,
 			expectedSelectPolicy:  "max",
@@ -3732,31 +3753,7 @@ func TestGenerateScaleDownBehavior(t *testing.T) {
 			rateDownPods:              createInt32Pointer(3),
 			rateDownPodsPeriodSeconds: createInt32Pointer(4),
 			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
-				{Type: autoscalingv2.PercentScalingPolicy, Value: createInt32Pointer(100), PeriodSeconds: createInt32Pointer(60)},
 				{Type: autoscalingv2.PodsScalingPolicy, Value: createInt32Pointer(3), PeriodSeconds: createInt32Pointer(4)},
-			},
-			expectedStabilization: 300,
-			expectedSelectPolicy:  "max",
-		},
-		{
-			annotation:                "Only values are specified",
-			rateDownPods:              createInt32Pointer(1),
-			rateDownPodsPeriodSeconds: createInt32Pointer(4), // we cannot skip period or it won't work
-			rateDownPercent:           createInt32Pointer(3),
-			stabilizationSeconds:      createInt32Pointer(25),
-			selectPolicy:              &minPolicy,
-			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
-				{Type: autoscalingv2.PercentScalingPolicy, Value: createInt32Pointer(3), PeriodSeconds: createInt32Pointer(60)},
-				{Type: autoscalingv2.PodsScalingPolicy, Value: createInt32Pointer(1), PeriodSeconds: createInt32Pointer(4)},
-			},
-			expectedStabilization: 25,
-			expectedSelectPolicy:  "min",
-		},
-		{
-			annotation:                   "Only periods are specified",
-			rateDownPercentPeriodSeconds: createInt32Pointer(4),
-			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
-				{Type: autoscalingv2.PercentScalingPolicy, Value: createInt32Pointer(100), PeriodSeconds: createInt32Pointer(4)},
 			},
 			expectedStabilization: 300,
 			expectedSelectPolicy:  "max",
