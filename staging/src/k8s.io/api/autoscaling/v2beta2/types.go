@@ -159,14 +159,21 @@ type HPAScalingRules struct {
 type HPAScalingPolicyType string
 
 const (
-	PodsScalingPolicy    HPAScalingPolicyType = "pods"
+	// PodsScalingPolicy is a policy used to specify a change in absolute number of pods.
+	PodsScalingPolicy HPAScalingPolicyType = "pods"
+	// PercentScalingPolicy is a policy used to specify a relative amount of change with respect to
+	// the current number of pods.
 	PercentScalingPolicy HPAScalingPolicyType = "percent"
 )
 
+// HPAScalingPolicy is a single policy which must hold true for a specified past interval.
 type HPAScalingPolicy struct {
-	Type          HPAScalingPolicyType `json:"type" protobuf:"bytes,1,opt,name=type,casttype=HPAScalingPolicyType"`
-	Value         *int32               `json:"value" protobuf:"varint,2,opt,name=value"`
-	PeriodSeconds *int32               `json:"periodSeconds" protobuf:"varint,3,opt,name=periodSeconds"`
+	// Type is used to specify the scaling policy.
+	Type HPAScalingPolicyType `json:"type" protobuf:"bytes,1,opt,name=type,casttype=HPAScalingPolicyType"`
+	// Value contains the amount of change which is permitted by the policy.
+	Value *int32 `json:"value" protobuf:"varint,2,opt,name=value"`
+	// PeriodSeconds specifies the window of time for which the policy should hold true.
+	PeriodSeconds *int32 `json:"periodSeconds" protobuf:"varint,3,opt,name=periodSeconds"`
 }
 
 // MetricSourceType indicates the type of metric.

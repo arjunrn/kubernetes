@@ -154,9 +154,9 @@ type HPAScalingPolicy struct {
 	// Type is used to specify the scaling policy.
 	Type HPAScalingPolicyType
 	// Value contains the amount of change which is permitted by the policy.
-	Value int32
+	Value *int32
 	// PeriodSeconds specifies the window of time for which the policy should hold true.
-	PeriodSeconds int32
+	PeriodSeconds *int32
 }
 
 // MetricSourceType indicates the type of metric.
