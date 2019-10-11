@@ -49,6 +49,7 @@ import (
 	metricsfake "k8s.io/metrics/pkg/client/clientset/versioned/fake"
 	cmfake "k8s.io/metrics/pkg/client/custom_metrics/fake"
 	emfake "k8s.io/metrics/pkg/client/external_metrics/fake"
+	utilpointer "k8s.io/utils/pointer"
 
 	"github.com/stretchr/testify/assert"
 
@@ -2164,7 +2165,7 @@ func TestUpscaleCap(t *testing.T) {
 		maxReplicas:             100,
 		specReplicas:            3,
 		statusReplicas:          3,
-		scaleUpBehavior:         generateBehavior(nil, createInt32Pointer(700), nil),
+		scaleUpBehavior:         generateBehavior(nil, utilpointer.Int32Ptr(700), nil),
 		initialReplicas:         3,
 		expectedDesiredReplicas: 24,
 		CPUTarget:               10,
@@ -2186,7 +2187,7 @@ func TestUpscaleCapGreaterThanMaxReplicas(t *testing.T) {
 		maxReplicas:     20,
 		specReplicas:    3,
 		statusReplicas:  3,
-		scaleUpBehavior: generateBehavior(nil, createInt32Pointer(700), nil),
+		scaleUpBehavior: generateBehavior(nil, utilpointer.Int32Ptr(700), nil),
 		initialReplicas: 3,
 		// expectedDesiredReplicas would be 24 without maxReplicas
 		expectedDesiredReplicas: 20,
@@ -3040,8 +3041,8 @@ func TestConvertDesiredReplicasWithBehavior(t *testing.T) {
 				Policies: []autoscalingv2.HPAScalingPolicy{
 					{
 						Type:          autoscalingv2.PercentScalingPolicy,
-						Value:         createInt32Pointer(1),
-						PeriodSeconds: createInt32Pointer(60),
+						Value:         utilpointer.Int32Ptr(1),
+						PeriodSeconds: utilpointer.Int32Ptr(60),
 					},
 				},
 			},
@@ -3055,8 +3056,8 @@ func TestConvertDesiredReplicasWithBehavior(t *testing.T) {
 			scaleDownBehavior: &autoscalingv2.HPAScalingRules{
 				Policies: []autoscalingv2.HPAScalingPolicy{
 					{
-						Value:         createInt32Pointer(20),
-						PeriodSeconds: createInt32Pointer(60),
+						Value:         utilpointer.Int32Ptr(20),
+						PeriodSeconds: utilpointer.Int32Ptr(60),
 						Type:          autoscalingv2.PodsScalingPolicy,
 					},
 				},
@@ -3085,17 +3086,9 @@ func TestConvertDesiredReplicasWithBehavior(t *testing.T) {
 	}
 }
 
-func createInt32Pointer(x int32) *int32 {
-	return &x
-}
-
-func createStringPointer(x string) *string {
-	return &x
-}
-
 func generateBehavior(pods, percent, period *int32) *autoscalingv2.HPAScalingRules {
 	if period == nil {
-		period = createInt32Pointer(60)
+		period = utilpointer.Int32Ptr(60)
 	}
 	directionBehavior := autoscalingv2.HPAScalingRules{}
 	if pods != nil {
@@ -3241,7 +3234,7 @@ func TestScaleRate(t *testing.T) {
 		// ScaleUp without PeriodSeconds usage
 		{
 			name:                         "scaleUp with default constraint",
-			specMinReplicas:              createInt32Pointer(1),
+			specMinReplicas:              utilpointer.Int32Ptr(1),
 			specMaxReplicas:              1000,
 			currentReplicas:              10,
 			prenormalizedDesiredReplicas: 50,
@@ -3249,22 +3242,22 @@ func TestScaleRate(t *testing.T) {
 		},
 		{
 			name:                         "scaleUp with rate.Pods is larger then rate.Percent",
-			specMinReplicas:              createInt32Pointer(1),
+			specMinReplicas:              utilpointer.Int32Ptr(1),
 			specMaxReplicas:              1000,
-			rateUpPods:                   createInt32Pointer(100),
-			rateUpPercent:                createInt32Pointer(100),
-			rateUpPeriodSeconds:          createInt32Pointer(60),
+			rateUpPods:                   utilpointer.Int32Ptr(100),
+			rateUpPercent:                utilpointer.Int32Ptr(100),
+			rateUpPeriodSeconds:          utilpointer.Int32Ptr(60),
 			currentReplicas:              10,
 			prenormalizedDesiredReplicas: 500,
 			expectedReplicas:             110,
 		},
 		{
 			name:                         "scaleUp with rate.Percent is larger then rate.Pods",
-			specMinReplicas:              createInt32Pointer(1),
+			specMinReplicas:              utilpointer.Int32Ptr(1),
 			specMaxReplicas:              1000,
-			rateUpPods:                   createInt32Pointer(2),
-			rateUpPercent:                createInt32Pointer(100),
-			rateUpPeriodSeconds:          createInt32Pointer(60),
+			rateUpPods:                   utilpointer.Int32Ptr(2),
+			rateUpPercent:                utilpointer.Int32Ptr(100),
+			rateUpPeriodSeconds:          utilpointer.Int32Ptr(60),
 			currentReplicas:              10,
 			prenormalizedDesiredReplicas: 500,
 			expectedReplicas:             20,
@@ -3273,8 +3266,8 @@ func TestScaleRate(t *testing.T) {
 			name:                         "scaleUp with spec MaxReplicas limitation with large rate.Pods",
 			specMinReplicas:              nil,
 			specMaxReplicas:              1000,
-			rateUpPods:                   createInt32Pointer(100),
-			rateUpPeriodSeconds:          createInt32Pointer(60),
+			rateUpPods:                   utilpointer.Int32Ptr(100),
+			rateUpPeriodSeconds:          utilpointer.Int32Ptr(60),
 			currentReplicas:              10,
 			prenormalizedDesiredReplicas: 50,
 			expectedReplicas:             50,
@@ -3283,8 +3276,8 @@ func TestScaleRate(t *testing.T) {
 			name:                         "scaleUp with spec MaxReplicas limitation with large rate.Percent",
 			specMinReplicas:              nil,
 			specMaxReplicas:              1000,
-			rateUpPercent:                createInt32Pointer(10000),
-			rateUpPeriodSeconds:          createInt32Pointer(60),
+			rateUpPercent:                utilpointer.Int32Ptr(10000),
+			rateUpPeriodSeconds:          utilpointer.Int32Ptr(60),
 			currentReplicas:              10,
 			prenormalizedDesiredReplicas: 50,
 			expectedReplicas:             50,
@@ -3293,8 +3286,8 @@ func TestScaleRate(t *testing.T) {
 			name:                         "scaleUp with rate.Pods limitation",
 			specMinReplicas:              nil,
 			specMaxReplicas:              1000,
-			rateUpPods:                   createInt32Pointer(30),
-			rateUpPeriodSeconds:          createInt32Pointer(60),
+			rateUpPods:                   utilpointer.Int32Ptr(30),
+			rateUpPeriodSeconds:          utilpointer.Int32Ptr(60),
 			currentReplicas:              10,
 			prenormalizedDesiredReplicas: 50,
 			expectedReplicas:             40,
@@ -3303,8 +3296,8 @@ func TestScaleRate(t *testing.T) {
 			name:                         "scaleUp with rate.Percent limitation",
 			specMinReplicas:              nil,
 			specMaxReplicas:              1000,
-			rateUpPercent:                createInt32Pointer(200),
-			rateUpPeriodSeconds:          createInt32Pointer(60),
+			rateUpPercent:                utilpointer.Int32Ptr(200),
+			rateUpPeriodSeconds:          utilpointer.Int32Ptr(60),
 			currentReplicas:              10,
 			prenormalizedDesiredReplicas: 50,
 			expectedReplicas:             30,
@@ -3312,7 +3305,7 @@ func TestScaleRate(t *testing.T) {
 		// ScaleDown without PeriodSeconds usage
 		{
 			name:                         "scaleDown with default constraint",
-			specMinReplicas:              createInt32Pointer(1),
+			specMinReplicas:              utilpointer.Int32Ptr(1),
 			specMaxReplicas:              1000,
 			currentReplicas:              10,
 			prenormalizedDesiredReplicas: 5,
@@ -3320,22 +3313,22 @@ func TestScaleRate(t *testing.T) {
 		},
 		{
 			name:                         "scaleDown with rate.Percent is larger then rate.Pods",
-			specMinReplicas:              createInt32Pointer(1),
+			specMinReplicas:              utilpointer.Int32Ptr(1),
 			specMaxReplicas:              1000,
-			rateDownPods:                 createInt32Pointer(20),
-			rateDownPercent:              createInt32Pointer(1),
-			rateDownPeriodSeconds:        createInt32Pointer(60),
+			rateDownPods:                 utilpointer.Int32Ptr(20),
+			rateDownPercent:              utilpointer.Int32Ptr(1),
+			rateDownPeriodSeconds:        utilpointer.Int32Ptr(60),
 			currentReplicas:              100,
 			prenormalizedDesiredReplicas: 2,
 			expectedReplicas:             80,
 		},
 		{
 			name:                         "scaleDown with rate.Pods is larger then rate.Percent",
-			specMinReplicas:              createInt32Pointer(1),
+			specMinReplicas:              utilpointer.Int32Ptr(1),
 			specMaxReplicas:              1000,
-			rateDownPods:                 createInt32Pointer(2),
-			rateDownPercent:              createInt32Pointer(1),
-			rateDownPeriodSeconds:        createInt32Pointer(60),
+			rateDownPods:                 utilpointer.Int32Ptr(2),
+			rateDownPercent:              utilpointer.Int32Ptr(1),
+			rateDownPeriodSeconds:        utilpointer.Int32Ptr(60),
 			currentReplicas:              100,
 			prenormalizedDesiredReplicas: 2,
 			expectedReplicas:             98,
@@ -3344,27 +3337,27 @@ func TestScaleRate(t *testing.T) {
 			name:                         "scaleDown with spec MinReplicas=nil limitation with large rate.Pods",
 			specMinReplicas:              nil,
 			specMaxReplicas:              1000,
-			rateDownPods:                 createInt32Pointer(100),
-			rateDownPeriodSeconds:        createInt32Pointer(60),
+			rateDownPods:                 utilpointer.Int32Ptr(100),
+			rateDownPeriodSeconds:        utilpointer.Int32Ptr(60),
 			currentReplicas:              10,
 			prenormalizedDesiredReplicas: 0,
 			expectedReplicas:             1,
 		},
 		{
 			name:                         "scaleDown with spec MinReplicas limitation with large rate.Pods",
-			specMinReplicas:              createInt32Pointer(1),
+			specMinReplicas:              utilpointer.Int32Ptr(1),
 			specMaxReplicas:              1000,
-			rateDownPods:                 createInt32Pointer(100),
-			rateDownPeriodSeconds:        createInt32Pointer(60),
+			rateDownPods:                 utilpointer.Int32Ptr(100),
+			rateDownPeriodSeconds:        utilpointer.Int32Ptr(60),
 			currentReplicas:              10,
 			prenormalizedDesiredReplicas: 0,
 			expectedReplicas:             1,
 		},
 		{
 			name:                         "scaleDown with spec MinReplicas limitation with large rate.Percent",
-			specMinReplicas:              createInt32Pointer(5),
+			specMinReplicas:              utilpointer.Int32Ptr(5),
 			specMaxReplicas:              1000,
-			rateDownPercent:              createInt32Pointer(100), // 100% removal - is always to 0 => limited by MinReplicas
+			rateDownPercent:              utilpointer.Int32Ptr(100), // 100% removal - is always to 0 => limited by MinReplicas
 			currentReplicas:              10,
 			prenormalizedDesiredReplicas: 2,
 			expectedReplicas:             5,
@@ -3373,9 +3366,9 @@ func TestScaleRate(t *testing.T) {
 			name:                         "scaleDown with rate.Pods limitation",
 			specMinReplicas:              nil,
 			specMaxReplicas:              1000,
-			rateDownPods:                 createInt32Pointer(5),
-			rateDownPeriodSeconds:        createInt32Pointer(60),
-			rateDownPercent:              createInt32Pointer(0), // otherwise, the default value 100% is used
+			rateDownPods:                 utilpointer.Int32Ptr(5),
+			rateDownPeriodSeconds:        utilpointer.Int32Ptr(60),
+			rateDownPercent:              utilpointer.Int32Ptr(0), // otherwise, the default value 100% is used
 			currentReplicas:              10,
 			prenormalizedDesiredReplicas: 2,
 			expectedReplicas:             5,
@@ -3384,7 +3377,7 @@ func TestScaleRate(t *testing.T) {
 			name:                         "scaleDown with rate.Percent limitation",
 			specMinReplicas:              nil,
 			specMaxReplicas:              1000,
-			rateDownPercent:              createInt32Pointer(50),
+			rateDownPercent:              utilpointer.Int32Ptr(50),
 			currentReplicas:              10,
 			prenormalizedDesiredReplicas: 5,
 			expectedReplicas:             5,
@@ -3393,9 +3386,9 @@ func TestScaleRate(t *testing.T) {
 		{
 			name:                         "scaleUp with rate.PeriodSeconds with default rate",
 			scaleUpEvents:                generateEvents([]int{1, 2, 3, 4, 5}, 60),
-			specMinReplicas:              createInt32Pointer(1),
+			specMinReplicas:              utilpointer.Int32Ptr(1),
 			specMaxReplicas:              1000,
-			rateUpPeriodSeconds:          createInt32Pointer(60),
+			rateUpPeriodSeconds:          utilpointer.Int32Ptr(60),
 			currentReplicas:              100,
 			prenormalizedDesiredReplicas: 500,
 			expectedReplicas:             170, // (100 - 15) + 100%
@@ -3405,8 +3398,8 @@ func TestScaleRate(t *testing.T) {
 			scaleUpEvents:                generateEvents([]int{1, 5, 9}, 120),
 			specMinReplicas:              nil,
 			specMaxReplicas:              200,
-			rateUpPeriodSeconds:          createInt32Pointer(60),
-			rateUpPods:                   createInt32Pointer(300),
+			rateUpPeriodSeconds:          utilpointer.Int32Ptr(60),
+			rateUpPods:                   utilpointer.Int32Ptr(300),
 			currentReplicas:              100,
 			prenormalizedDesiredReplicas: 500,
 			expectedReplicas:             200, // 200 < 100 - 15 + 300
@@ -3416,8 +3409,8 @@ func TestScaleRate(t *testing.T) {
 			scaleUpEvents:                generateEvents([]int{1, 5, 9}, 120),
 			specMinReplicas:              nil,
 			specMaxReplicas:              200,
-			rateUpPeriodSeconds:          createInt32Pointer(60),
-			rateUpPercent:                createInt32Pointer(10000),
+			rateUpPeriodSeconds:          utilpointer.Int32Ptr(60),
+			rateUpPercent:                utilpointer.Int32Ptr(10000),
 			currentReplicas:              100,
 			prenormalizedDesiredReplicas: 500,
 			expectedReplicas:             200,
@@ -3429,9 +3422,9 @@ func TestScaleRate(t *testing.T) {
 			scaleUpEvents:                generateEvents([]int{1, 5, 9}, 120),
 			specMinReplicas:              nil,
 			specMaxReplicas:              1000,
-			rateUpPeriodSeconds:          createInt32Pointer(120),
-			rateUpPods:                   createInt32Pointer(5),
-			rateUpPercent:                createInt32Pointer(0),
+			rateUpPeriodSeconds:          utilpointer.Int32Ptr(120),
+			rateUpPods:                   utilpointer.Int32Ptr(5),
+			rateUpPercent:                utilpointer.Int32Ptr(0),
 			currentReplicas:              100,
 			prenormalizedDesiredReplicas: 500,
 			expectedReplicas:             100, // 120 seconds ago we had (100 - 15) replicas, now the rate.Pods = 5,
@@ -3441,8 +3434,8 @@ func TestScaleRate(t *testing.T) {
 			scaleUpEvents:                generateEvents([]int{1, 5, 9}, 120),
 			specMinReplicas:              nil,
 			specMaxReplicas:              1000,
-			rateUpPeriodSeconds:          createInt32Pointer(120),
-			rateUpPods:                   createInt32Pointer(150),
+			rateUpPeriodSeconds:          utilpointer.Int32Ptr(120),
+			rateUpPods:                   utilpointer.Int32Ptr(150),
 			currentReplicas:              100,
 			prenormalizedDesiredReplicas: 500,
 			expectedReplicas:             235, // 100 - 15 + 150
@@ -3452,8 +3445,8 @@ func TestScaleRate(t *testing.T) {
 			scaleUpEvents:                generateEvents([]int{1, 5, 9}, 120),
 			specMinReplicas:              nil,
 			specMaxReplicas:              1000,
-			rateUpPeriodSeconds:          createInt32Pointer(120),
-			rateUpPercent:                createInt32Pointer(200),
+			rateUpPeriodSeconds:          utilpointer.Int32Ptr(120),
+			rateUpPercent:                utilpointer.Int32Ptr(200),
 			currentReplicas:              100,
 			prenormalizedDesiredReplicas: 500,
 			expectedReplicas:             255, // (100 - 15) + 200%
@@ -3462,9 +3455,9 @@ func TestScaleRate(t *testing.T) {
 		{
 			name:                         "scaleDown with default constraint with PeriodSeconds usage",
 			scaleDownEvents:              generateEvents([]int{1, 5, 9}, 120),
-			specMinReplicas:              createInt32Pointer(1),
+			specMinReplicas:              utilpointer.Int32Ptr(1),
 			specMaxReplicas:              1000,
-			rateDownPeriodSeconds:        createInt32Pointer(120),
+			rateDownPeriodSeconds:        utilpointer.Int32Ptr(120),
 			currentReplicas:              10,
 			prenormalizedDesiredReplicas: 5,
 			expectedReplicas:             5, // without scaleDown rate limitations the PeriodSeconds does not influence anything
@@ -3474,9 +3467,9 @@ func TestScaleRate(t *testing.T) {
 			scaleDownEvents:              generateEvents([]int{1, 5, 9}, 120),
 			specMinReplicas:              nil,
 			specMaxReplicas:              1000,
-			rateDownPeriodSeconds:        createInt32Pointer(120),
-			rateDownPods:                 createInt32Pointer(115),
-			rateDownPercent:              createInt32Pointer(0), // otherwise, the default value 100% is used
+			rateDownPeriodSeconds:        utilpointer.Int32Ptr(120),
+			rateDownPods:                 utilpointer.Int32Ptr(115),
+			rateDownPercent:              utilpointer.Int32Ptr(0), // otherwise, the default value 100% is used
 			currentReplicas:              100,
 			prenormalizedDesiredReplicas: 0,
 			expectedReplicas:             1,
@@ -3484,11 +3477,11 @@ func TestScaleRate(t *testing.T) {
 		{
 			name:                         "scaleDown with spec MinReplicas limitation with large rate.Pods with PeriodSeconds usage",
 			scaleDownEvents:              generateEvents([]int{1, 5, 9}, 120),
-			specMinReplicas:              createInt32Pointer(5),
+			specMinReplicas:              utilpointer.Int32Ptr(5),
 			specMaxReplicas:              1000,
-			rateDownPeriodSeconds:        createInt32Pointer(120),
-			rateDownPods:                 createInt32Pointer(130),
-			rateDownPercent:              createInt32Pointer(0), // otherwise, the default value 100% is used
+			rateDownPeriodSeconds:        utilpointer.Int32Ptr(120),
+			rateDownPods:                 utilpointer.Int32Ptr(130),
+			rateDownPercent:              utilpointer.Int32Ptr(0), // otherwise, the default value 100% is used
 			currentReplicas:              100,
 			prenormalizedDesiredReplicas: 0,
 			expectedReplicas:             5,
@@ -3496,10 +3489,10 @@ func TestScaleRate(t *testing.T) {
 		{
 			name:                         "scaleDown with spec MinReplicas limitation with large rate.Percent with PeriodSeconds usage",
 			scaleDownEvents:              generateEvents([]int{1, 5, 9}, 120),
-			specMinReplicas:              createInt32Pointer(5),
+			specMinReplicas:              utilpointer.Int32Ptr(5),
 			specMaxReplicas:              1000,
-			rateDownPeriodSeconds:        createInt32Pointer(120),
-			rateDownPercent:              createInt32Pointer(100), // 100% removal - is always to 0 => limited by MinReplicas
+			rateDownPeriodSeconds:        utilpointer.Int32Ptr(120),
+			rateDownPercent:              utilpointer.Int32Ptr(100), // 100% removal - is always to 0 => limited by MinReplicas
 			currentReplicas:              100,
 			prenormalizedDesiredReplicas: 2,
 			expectedReplicas:             5,
@@ -3509,9 +3502,9 @@ func TestScaleRate(t *testing.T) {
 			scaleDownEvents:              generateEvents([]int{1, 5, 9}, 120),
 			specMinReplicas:              nil,
 			specMaxReplicas:              1000,
-			rateDownPeriodSeconds:        createInt32Pointer(120),
-			rateDownPods:                 createInt32Pointer(5),
-			rateDownPercent:              createInt32Pointer(0), // otherwise, the default value 100% is used
+			rateDownPeriodSeconds:        utilpointer.Int32Ptr(120),
+			rateDownPods:                 utilpointer.Int32Ptr(5),
+			rateDownPercent:              utilpointer.Int32Ptr(0), // otherwise, the default value 100% is used
 			currentReplicas:              100,
 			prenormalizedDesiredReplicas: 2,
 			expectedReplicas:             100, // 100 + 15 - 5
@@ -3521,8 +3514,8 @@ func TestScaleRate(t *testing.T) {
 			scaleDownEvents:              generateEvents([]int{2, 4, 6}, 120),
 			specMinReplicas:              nil,
 			specMaxReplicas:              1000,
-			rateDownPeriodSeconds:        createInt32Pointer(120),
-			rateDownPercent:              createInt32Pointer(50),
+			rateDownPeriodSeconds:        utilpointer.Int32Ptr(120),
+			rateDownPercent:              utilpointer.Int32Ptr(50),
 			currentReplicas:              100,
 			prenormalizedDesiredReplicas: 0,
 			expectedReplicas:             56, // (100 + 12) - 50%
@@ -3534,8 +3527,8 @@ func TestScaleRate(t *testing.T) {
 			scaleDownEvents:              generateEvents([]int{10, 10, 10}, 120),
 			specMinReplicas:              nil,
 			specMaxReplicas:              1000,
-			rateDownPeriodSeconds:        createInt32Pointer(120),
-			rateDownPercent:              createInt32Pointer(10),
+			rateDownPeriodSeconds:        utilpointer.Int32Ptr(120),
+			rateDownPercent:              utilpointer.Int32Ptr(10),
 			currentReplicas:              100,
 			prenormalizedDesiredReplicas: 0,
 			expectedReplicas:             100, // (100 + 30) - 10% = 117 is more then 100 (currentReplicas), keep 100
@@ -3546,8 +3539,8 @@ func TestScaleRate(t *testing.T) {
 			scaleDownEvents:              generateEvents([]int{10, 10, 10}, 120),
 			specMinReplicas:              nil,
 			specMaxReplicas:              1000,
-			rateDownPeriodSeconds:        createInt32Pointer(120),
-			rateDownPercent:              createInt32Pointer(1000),
+			rateDownPeriodSeconds:        utilpointer.Int32Ptr(120),
+			rateDownPercent:              utilpointer.Int32Ptr(1000),
 			currentReplicas:              10,
 			prenormalizedDesiredReplicas: 5,
 			expectedReplicas:             5, // (10 + 30) - 1000% = -360 is less than 0 and less then 5 (desired by metrics), set 5
@@ -3610,64 +3603,64 @@ func TestGenerateScaleUpBehavior(t *testing.T) {
 		{
 			annotation: "Default values",
 			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
-				{Type: autoscalingv2.PodsScalingPolicy, Value: createInt32Pointer(4), PeriodSeconds: createInt32Pointer(60)},
-				{Type: autoscalingv2.PercentScalingPolicy, Value: createInt32Pointer(100), PeriodSeconds: createInt32Pointer(60)},
+				{Type: autoscalingv2.PodsScalingPolicy, Value: utilpointer.Int32Ptr(4), PeriodSeconds: utilpointer.Int32Ptr(60)},
+				{Type: autoscalingv2.PercentScalingPolicy, Value: utilpointer.Int32Ptr(100), PeriodSeconds: utilpointer.Int32Ptr(60)},
 			},
 			expectedStabilization: 0, // just to show that we always check that default expected stabilization is 0
 			expectedSelectPolicy:  "max",
 		},
 		{
 			annotation:                 "All parameters are specified",
-			rateUpPods:                 createInt32Pointer(1),
-			rateUpPodsPeriodSeconds:    createInt32Pointer(2),
-			rateUpPercent:              createInt32Pointer(3),
-			rateUpPercentPeriodSeconds: createInt32Pointer(4),
-			stabilizationSeconds:       createInt32Pointer(25),
+			rateUpPods:                 utilpointer.Int32Ptr(1),
+			rateUpPodsPeriodSeconds:    utilpointer.Int32Ptr(2),
+			rateUpPercent:              utilpointer.Int32Ptr(3),
+			rateUpPercentPeriodSeconds: utilpointer.Int32Ptr(4),
+			stabilizationSeconds:       utilpointer.Int32Ptr(25),
 			selectPolicy:               &maxPolicy,
 			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
-				{Type: autoscalingv2.PodsScalingPolicy, Value: createInt32Pointer(1), PeriodSeconds: createInt32Pointer(2)},
-				{Type: autoscalingv2.PercentScalingPolicy, Value: createInt32Pointer(3), PeriodSeconds: createInt32Pointer(4)},
+				{Type: autoscalingv2.PodsScalingPolicy, Value: utilpointer.Int32Ptr(1), PeriodSeconds: utilpointer.Int32Ptr(2)},
+				{Type: autoscalingv2.PercentScalingPolicy, Value: utilpointer.Int32Ptr(3), PeriodSeconds: utilpointer.Int32Ptr(4)},
 			},
 			expectedStabilization: 25,
 			expectedSelectPolicy:  "max",
 		},
 		{
 			annotation:              "Pod policy is specified",
-			rateUpPods:              createInt32Pointer(1),
-			rateUpPodsPeriodSeconds: createInt32Pointer(2),
+			rateUpPods:              utilpointer.Int32Ptr(1),
+			rateUpPodsPeriodSeconds: utilpointer.Int32Ptr(2),
 			selectPolicy:            &minPolicy,
 			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
-				{Type: autoscalingv2.PodsScalingPolicy, Value: createInt32Pointer(1), PeriodSeconds: createInt32Pointer(2)},
+				{Type: autoscalingv2.PodsScalingPolicy, Value: utilpointer.Int32Ptr(1), PeriodSeconds: utilpointer.Int32Ptr(2)},
 			},
 			expectedSelectPolicy: "min",
 		},
 		{
 			annotation:                 "Percent policy is specified",
-			rateUpPercent:              createInt32Pointer(7),
-			rateUpPercentPeriodSeconds: createInt32Pointer(10),
+			rateUpPercent:              utilpointer.Int32Ptr(7),
+			rateUpPercentPeriodSeconds: utilpointer.Int32Ptr(10),
 			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
-				{Type: autoscalingv2.PercentScalingPolicy, Value: createInt32Pointer(7), PeriodSeconds: createInt32Pointer(10)},
+				{Type: autoscalingv2.PercentScalingPolicy, Value: utilpointer.Int32Ptr(7), PeriodSeconds: utilpointer.Int32Ptr(10)},
 			},
 			expectedSelectPolicy: "max",
 		},
 		{
 			annotation:              "Pod policy and stabiliation period are specified",
-			rateUpPodsPeriodSeconds: createInt32Pointer(2),
-			stabilizationSeconds:    createInt32Pointer(25),
-			rateUpPods:              createInt32Pointer(4),
+			rateUpPodsPeriodSeconds: utilpointer.Int32Ptr(2),
+			stabilizationSeconds:    utilpointer.Int32Ptr(25),
+			rateUpPods:              utilpointer.Int32Ptr(4),
 			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
-				{Type: autoscalingv2.PodsScalingPolicy, Value: createInt32Pointer(4), PeriodSeconds: createInt32Pointer(2)},
+				{Type: autoscalingv2.PodsScalingPolicy, Value: utilpointer.Int32Ptr(4), PeriodSeconds: utilpointer.Int32Ptr(2)},
 			},
 			expectedStabilization: 25,
 			expectedSelectPolicy:  "max",
 		},
 		{
 			annotation:                 "Percent policy and stabilization period are specified",
-			rateUpPercent:              createInt32Pointer(7),
-			rateUpPercentPeriodSeconds: createInt32Pointer(60),
-			stabilizationSeconds:       createInt32Pointer(25),
+			rateUpPercent:              utilpointer.Int32Ptr(7),
+			rateUpPercentPeriodSeconds: utilpointer.Int32Ptr(60),
+			stabilizationSeconds:       utilpointer.Int32Ptr(25),
 			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
-				{Type: autoscalingv2.PercentScalingPolicy, Value: createInt32Pointer(7), PeriodSeconds: createInt32Pointer(60)},
+				{Type: autoscalingv2.PercentScalingPolicy, Value: utilpointer.Int32Ptr(7), PeriodSeconds: utilpointer.Int32Ptr(60)},
 			},
 			expectedStabilization: 25,
 			expectedSelectPolicy:  "max",
@@ -3717,43 +3710,43 @@ func TestGenerateScaleDownBehavior(t *testing.T) {
 		{
 			annotation: "Default values",
 			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
-				{Type: autoscalingv2.PercentScalingPolicy, Value: createInt32Pointer(100), PeriodSeconds: createInt32Pointer(60)},
+				{Type: autoscalingv2.PercentScalingPolicy, Value: utilpointer.Int32Ptr(100), PeriodSeconds: utilpointer.Int32Ptr(60)},
 			},
 			expectedStabilization: 300,
 			expectedSelectPolicy:  "max",
 		},
 		{
 			annotation:                   "All parameters are specified",
-			rateDownPods:                 createInt32Pointer(1),
-			rateDownPodsPeriodSeconds:    createInt32Pointer(2),
-			rateDownPercent:              createInt32Pointer(3),
-			rateDownPercentPeriodSeconds: createInt32Pointer(4),
-			stabilizationSeconds:         createInt32Pointer(25),
+			rateDownPods:                 utilpointer.Int32Ptr(1),
+			rateDownPodsPeriodSeconds:    utilpointer.Int32Ptr(2),
+			rateDownPercent:              utilpointer.Int32Ptr(3),
+			rateDownPercentPeriodSeconds: utilpointer.Int32Ptr(4),
+			stabilizationSeconds:         utilpointer.Int32Ptr(25),
 			selectPolicy:                 &maxPolicy,
 			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
-				{Type: autoscalingv2.PodsScalingPolicy, Value: createInt32Pointer(1), PeriodSeconds: createInt32Pointer(2)},
-				{Type: autoscalingv2.PercentScalingPolicy, Value: createInt32Pointer(3), PeriodSeconds: createInt32Pointer(4)},
+				{Type: autoscalingv2.PodsScalingPolicy, Value: utilpointer.Int32Ptr(1), PeriodSeconds: utilpointer.Int32Ptr(2)},
+				{Type: autoscalingv2.PercentScalingPolicy, Value: utilpointer.Int32Ptr(3), PeriodSeconds: utilpointer.Int32Ptr(4)},
 			},
 			expectedStabilization: 25,
 			expectedSelectPolicy:  "max",
 		},
 		{
 			annotation:                   "Percent policy is specified",
-			rateDownPercent:              createInt32Pointer(1),
-			rateDownPercentPeriodSeconds: createInt32Pointer(2),
+			rateDownPercent:              utilpointer.Int32Ptr(1),
+			rateDownPercentPeriodSeconds: utilpointer.Int32Ptr(2),
 			selectPolicy:                 &minPolicy,
 			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
-				{Type: autoscalingv2.PercentScalingPolicy, Value: createInt32Pointer(1), PeriodSeconds: createInt32Pointer(2)},
+				{Type: autoscalingv2.PercentScalingPolicy, Value: utilpointer.Int32Ptr(1), PeriodSeconds: utilpointer.Int32Ptr(2)},
 			},
 			expectedStabilization: 300,
 			expectedSelectPolicy:  "min",
 		},
 		{
 			annotation:                "Pods policy is specified",
-			rateDownPods:              createInt32Pointer(3),
-			rateDownPodsPeriodSeconds: createInt32Pointer(4),
+			rateDownPods:              utilpointer.Int32Ptr(3),
+			rateDownPodsPeriodSeconds: utilpointer.Int32Ptr(4),
 			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
-				{Type: autoscalingv2.PodsScalingPolicy, Value: createInt32Pointer(3), PeriodSeconds: createInt32Pointer(4)},
+				{Type: autoscalingv2.PodsScalingPolicy, Value: utilpointer.Int32Ptr(3), PeriodSeconds: utilpointer.Int32Ptr(4)},
 			},
 			expectedStabilization: 300,
 			expectedSelectPolicy:  "max",
