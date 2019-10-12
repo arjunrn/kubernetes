@@ -1772,6 +1772,7 @@ func TestDescribeHorizontalPodAutoscaler(t *testing.T) {
 	minReplicasVal := int32(2)
 	targetUtilizationVal := int32(80)
 	currentUtilizationVal := int32(50)
+	maxSelectPolicy := autoscalingv2beta2.MaxPolicySelect
 	metricLabelSelector, err := metav1.ParseToLabelSelector("label=value")
 	if err != nil {
 		t.Errorf("unable to parse label selector: %v", err)
@@ -2410,6 +2411,75 @@ func TestDescribeHorizontalPodAutoscaler(t *testing.T) {
 									AverageUtilization: &currentUtilizationVal,
 									AverageValue:       resource.NewMilliQuantity(40, resource.DecimalSI),
 								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			"scale up behavior specified",
+			autoscalingv2beta2.HorizontalPodAutoscaler{
+				Spec: autoscalingv2beta2.HorizontalPodAutoscalerSpec{
+					ScaleTargetRef: autoscalingv2beta2.CrossVersionObjectReference{
+						Name: "behavior-target",
+						Kind: "Deployment",
+					},
+					MinReplicas: &minReplicasVal,
+					MaxReplicas: 10,
+					Metrics: []autoscalingv2beta2.MetricSpec{
+						{
+							Type: autoscalingv2beta2.ResourceMetricSourceType,
+							Resource: &autoscalingv2beta2.ResourceMetricSource{
+								Name: corev1.ResourceCPU,
+								Target: autoscalingv2beta2.MetricTarget{
+									Type:               autoscalingv2beta2.UtilizationMetricType,
+									AverageUtilization: &targetUtilizationVal,
+								},
+							},
+						},
+					},
+					Behavior: &autoscalingv2beta2.HorizontalPodAutoscalerBehavior{
+						ScaleUp: &autoscalingv2beta2.HPAScalingRules{
+							StabilizationWindowSeconds: utilpointer.Int32Ptr(30),
+							SelectPolicy:               &maxSelectPolicy,
+							Policies: []autoscalingv2beta2.HPAScalingPolicy{
+								{Type: autoscalingv2beta2.PodsScalingPolicy, Value: utilpointer.Int32Ptr(10), PeriodSeconds: utilpointer.Int32Ptr(10)},
+								{Type: autoscalingv2beta2.PercentScalingPolicy, Value: utilpointer.Int32Ptr(10), PeriodSeconds: utilpointer.Int32Ptr(10)},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			"scale down behavior specified",
+			autoscalingv2beta2.HorizontalPodAutoscaler{
+				Spec: autoscalingv2beta2.HorizontalPodAutoscalerSpec{
+					ScaleTargetRef: autoscalingv2beta2.CrossVersionObjectReference{
+						Name: "behavior-target",
+						Kind: "Deployment",
+					},
+					MinReplicas: &minReplicasVal,
+					MaxReplicas: 10,
+					Metrics: []autoscalingv2beta2.MetricSpec{
+						{
+							Type: autoscalingv2beta2.ResourceMetricSourceType,
+							Resource: &autoscalingv2beta2.ResourceMetricSource{
+								Name: corev1.ResourceCPU,
+								Target: autoscalingv2beta2.MetricTarget{
+									Type:               autoscalingv2beta2.UtilizationMetricType,
+									AverageUtilization: &targetUtilizationVal,
+								},
+							},
+						},
+					},
+					Behavior: &autoscalingv2beta2.HorizontalPodAutoscalerBehavior{
+						ScaleDown: &autoscalingv2beta2.HPAScalingRules{
+							StabilizationWindowSeconds: utilpointer.Int32Ptr(30),
+							Policies: []autoscalingv2beta2.HPAScalingPolicy{
+								{Type: autoscalingv2beta2.PodsScalingPolicy, Value: utilpointer.Int32Ptr(10), PeriodSeconds: utilpointer.Int32Ptr(10)},
+								{Type: autoscalingv2beta2.PercentScalingPolicy, Value: utilpointer.Int32Ptr(10), PeriodSeconds: utilpointer.Int32Ptr(10)},
 							},
 						},
 					},
