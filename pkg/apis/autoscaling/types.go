@@ -95,6 +95,70 @@ type HorizontalPodAutoscalerSpec struct {
 	// more information about how each type of metric must respond.
 	// +optional
 	Metrics []MetricSpec
+
+	// Behavior contains settings to specify the scaling behavior both while scaling up
+	// and scaling down. It also is used to customize other aspects of scaling like the
+	// scale down stabilization window
+	// +option
+	Behavior *HorizontalPodAutoscalerBehavior
+}
+
+// HorizontalPodAutoscalerBehavior configures a scaling behavior for Up and Down direction
+// (scaleUp and scaleDown fields respectively)
+type HorizontalPodAutoscalerBehavior struct {
+	// The scaling behavior while scaling up. Contains a list of policies and the policy selector.
+	// +optional
+	ScaleUp *HPAScalingRules
+	// The scaling behavior while scaling down. Contains a list of policies and the policy selector.
+	// +optional
+	ScaleDown *HPAScalingRules
+}
+
+// ScalingPolicySelect is used to specify which policy should be used while scaling in a certain direction
+type ScalingPolicySelect string
+
+const (
+	// MaxPolicySelect selects the policy with the highest possible change
+	MaxPolicySelect ScalingPolicySelect = "max"
+	// MinPolicySelect selects the policy with the lowest possible change
+	MinPolicySelect ScalingPolicySelect = "min"
+	// DisabledPolicySelect disables the scaling in this direction
+	DisabledPolicySelect ScalingPolicySelect = "disabled"
+)
+
+// HPAScalingRules configures the scaling policy and the policy selector
+type HPAScalingRules struct {
+	// StabilizationWindowSeconds is the number of seconds for which past recommendations should be considered while
+	// scaling down. This prevents scale down of the autoscaling target in case the load fluctuates.
+	// +optional
+	StabilizationWindowSeconds *int32
+	// SelectPolicy is used to specify which policy should be selected after evaluation.
+	// +optional
+	SelectPolicy *ScalingPolicySelect
+	// Policies is a list of potential scaling polices which can used during scaling.
+	// +optional
+	Policies []HPAScalingPolicy
+}
+
+// HPAScalingPolicyType is the type of the policy which could be used while making scaling decisions
+type HPAScalingPolicyType string
+
+const (
+	// PodsScalingPolicy is a policy used to specify a change in absolute number of pods.
+	PodsScalingPolicy HPAScalingPolicyType = "pods"
+	// PercentScalingPolicy is a policy used to specify a relative amount of change with respect to
+	// the current number of pods.
+	PercentScalingPolicy HPAScalingPolicyType = "percent"
+)
+
+// HPAScalingPolicy is a single policy which must hold true for a specified past interval.
+type HPAScalingPolicy struct {
+	// Type is used to specify the scaling policy.
+	Type HPAScalingPolicyType
+	// Value contains the amount of change which is permitted by the policy.
+	Value int32
+	// PeriodSeconds specifies the window of time for which the policy should hold true.
+	PeriodSeconds int32
 }
 
 // MetricSourceType indicates the type of metric.
