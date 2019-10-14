@@ -64,6 +64,9 @@ func validateHorizontalPodAutoscalerSpec(autoscaler autoscaling.HorizontalPodAut
 	if refErrs := validateMetrics(autoscaler.Metrics, fldPath.Child("metrics"), autoscaler.MinReplicas); len(refErrs) > 0 {
 		allErrs = append(allErrs, refErrs...)
 	}
+	if refErrs := validateBehavior(autoscaler.Behavior, fldPath.Child("behavior")); len(refErrs) > 0 {
+		allErrs = append(allErrs, refErrs...)
+	}
 	return allErrs
 }
 
@@ -153,6 +156,59 @@ func validateMetrics(metrics []autoscaling.MetricSpec, fldPath *field.Path, minR
 		}
 	}
 
+	return allErrs
+}
+
+func validateBehavior(behavior *autoscaling.HorizontalPodAutoscalerBehavior, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+	if behavior != nil {
+		if scaleUpErrs := validateScalingRules(behavior.ScaleUp, fldPath.Child("scaleUp")); len(scaleUpErrs) > 0 {
+			allErrs = append(allErrs, scaleUpErrs...)
+		}
+		if scaleDownErrs := validateScalingRules(behavior.ScaleDown, fldPath.Child("scaleDown")); len(scaleDownErrs) > 0 {
+			allErrs = append(allErrs, scaleDownErrs...)
+		}
+	}
+	return allErrs
+}
+
+func validateScalingRules(rules *autoscaling.HPAScalingRules, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+	if rules != nil {
+		if rules.StabilizationWindowSeconds != nil && *rules.StabilizationWindowSeconds < 0 {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("stabilizationWindowSeconds"), rules.StabilizationWindowSeconds, "must be greater than or equal to zero"))
+		}
+		if rules.SelectPolicy != nil &&
+			*rules.SelectPolicy != autoscaling.MaxPolicySelect &&
+			*rules.SelectPolicy != autoscaling.MinPolicySelect {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("selectPolicy"), rules.SelectPolicy, "must be either max or min"))
+		}
+		policiesPath := fldPath.Child("policies")
+		for i, policy := range rules.Policies {
+			idxPath := policiesPath.Index(i)
+			if policyErrs := validateScalingPolicy(policy, idxPath); len(policyErrs) > 0 {
+				allErrs = append(allErrs, policyErrs...)
+			}
+		}
+	}
+	return allErrs
+}
+
+func validateScalingPolicy(policy autoscaling.HPAScalingPolicy, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+	if policy.Type != autoscaling.PodsScalingPolicy && policy.Type != autoscaling.PercentScalingPolicy {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("type"), policy.Type, "must be either pods or percent"))
+	}
+	if policy.Value == nil {
+		allErrs = append(allErrs, field.Required(fldPath.Child("value"), "must specify a policy value"))
+	} else if *policy.Value < 0 {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("value"), policy.Value, "must be greater than or equal to zero"))
+	}
+	if policy.PeriodSeconds == nil {
+		allErrs = append(allErrs, field.Required(fldPath.Child("periodSeconds"), "must specify a policy periodSeconds"))
+	} else if *policy.PeriodSeconds < 0 {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("periodSeconds"), policy.PeriodSeconds, "must be greater than or equal to zero"))
+	}
 	return allErrs
 }
 
