@@ -58,6 +58,28 @@ func (ExternalMetricStatus) SwaggerDoc() map[string]string {
 	return map_ExternalMetricStatus
 }
 
+var map_HPAScalingPolicy = map[string]string{
+	"":              "HPAScalingPolicy is a single policy which must hold true for a specified past interval.",
+	"type":          "Type is used to specify the scaling policy.",
+	"value":         "Value contains the amount of change which is permitted by the policy.",
+	"periodSeconds": "PeriodSeconds specifies the window of time for which the policy should hold true.",
+}
+
+func (HPAScalingPolicy) SwaggerDoc() map[string]string {
+	return map_HPAScalingPolicy
+}
+
+var map_HPAScalingRules = map[string]string{
+	"":                           "HPAScalingRules configures the scaling policy and the policy selector",
+	"stabilizationWindowSeconds": "StabilizationWindowSeconds is the number of seconds for which past recommendations should be considered while scaling up or scaling down",
+	"selectPolicy":               "SelectPolicy is used to specify which policy should be used",
+	"policies":                   "Policies is a list of potential scaling polices which can used during scaling",
+}
+
+func (HPAScalingRules) SwaggerDoc() map[string]string {
+	return map_HPAScalingRules
+}
+
 var map_HorizontalPodAutoscaler = map[string]string{
 	"":         "HorizontalPodAutoscaler is the configuration for a horizontal pod autoscaler, which automatically manages the replica count of any resource implementing the scale subresource based on the metrics specified.",
 	"metadata": "metadata is the standard object metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
@@ -67,6 +89,16 @@ var map_HorizontalPodAutoscaler = map[string]string{
 
 func (HorizontalPodAutoscaler) SwaggerDoc() map[string]string {
 	return map_HorizontalPodAutoscaler
+}
+
+var map_HorizontalPodAutoscalerBehavior = map[string]string{
+	"":          "HorizontalPodAutoscalerBehavior configures a scaling behavior for Up and Down direction (scaleUp and scaleDown fields respectively)",
+	"scaleUp":   "constraint value for scaling Up",
+	"scaleDown": "constraint value for scaling Down",
+}
+
+func (HorizontalPodAutoscalerBehavior) SwaggerDoc() map[string]string {
+	return map_HorizontalPodAutoscalerBehavior
 }
 
 var map_HorizontalPodAutoscalerCondition = map[string]string{
@@ -98,6 +130,7 @@ var map_HorizontalPodAutoscalerSpec = map[string]string{
 	"minReplicas":    "minReplicas is the lower limit for the number of replicas to which the autoscaler can scale down.  It defaults to 1 pod.  minReplicas is allowed to be 0 if the alpha feature gate HPAScaleToZero is enabled and at least one Object or External metric is configured.  Scaling is active as long as at least one metric value is available.",
 	"maxReplicas":    "maxReplicas is the upper limit for the number of replicas to which the autoscaler can scale up. It cannot be less that minReplicas.",
 	"metrics":        "metrics contains the specifications for which to use to calculate the desired replica count (the maximum replica count across all metrics will be used).  The desired replica count is calculated multiplying the ratio between the target value and the current value by the current number of pods.  Ergo, metrics used must decrease as the pod count is increased, and vice-versa.  See the individual metric source types for more information about how each type of metric must respond. If not set, the default metric will be set to 80% average CPU utilization.",
+	"behavior":       "Behaviour contains the scaling behavior for the HPA",
 }
 
 func (HorizontalPodAutoscalerSpec) SwaggerDoc() map[string]string {
