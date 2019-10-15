@@ -3403,7 +3403,7 @@ func printDirectionBehavior(w PrefixWriter, direction string, rules *autoscaling
 			}
 			w.Write(LEVEL_2, "Policies:\n")
 			for _, p := range rules.Policies {
-				w.Write(LEVEL_3, "- Type: %s\tValue: %d\tPeriod: %d seconds\n", p.Type, *p.Value, *p.PeriodSeconds)
+				w.Write(LEVEL_3, "- Type: %s\tValue: %d\tPeriod: %d seconds\n", p.Type, p.Value, p.PeriodSeconds)
 			}
 		}
 	}

@@ -180,8 +180,9 @@ func validateScalingRules(rules *autoscaling.HPAScalingRules, fldPath *field.Pat
 		}
 		if rules.SelectPolicy != nil &&
 			*rules.SelectPolicy != autoscaling.MaxPolicySelect &&
-			*rules.SelectPolicy != autoscaling.MinPolicySelect {
-			allErrs = append(allErrs, field.Invalid(fldPath.Child("selectPolicy"), rules.SelectPolicy, "must be either max or min"))
+			*rules.SelectPolicy != autoscaling.MinPolicySelect &&
+			*rules.SelectPolicy != autoscaling.DisabledPolicySelect {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("selectPolicy"), rules.SelectPolicy, "must be max, min, or disabled"))
 		}
 		policiesPath := fldPath.Child("policies")
 		for i, policy := range rules.Policies {
@@ -199,15 +200,11 @@ func validateScalingPolicy(policy autoscaling.HPAScalingPolicy, fldPath *field.P
 	if policy.Type != autoscaling.PodsScalingPolicy && policy.Type != autoscaling.PercentScalingPolicy {
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("type"), policy.Type, "must be either pods or percent"))
 	}
-	if policy.Value == nil {
-		allErrs = append(allErrs, field.Required(fldPath.Child("value"), "must specify a policy value"))
-	} else if *policy.Value < 0 {
-		allErrs = append(allErrs, field.Invalid(fldPath.Child("value"), policy.Value, "must be greater than or equal to zero"))
+	if policy.Value <= 0 {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("value"), policy.Value, "must be greater than zero"))
 	}
-	if policy.PeriodSeconds == nil {
-		allErrs = append(allErrs, field.Required(fldPath.Child("periodSeconds"), "must specify a policy periodSeconds"))
-	} else if *policy.PeriodSeconds < 0 {
-		allErrs = append(allErrs, field.Invalid(fldPath.Child("periodSeconds"), policy.PeriodSeconds, "must be greater than or equal to zero"))
+	if policy.PeriodSeconds <= 0 {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("periodSeconds"), policy.PeriodSeconds, "must be greater than zero"))
 	}
 	return allErrs
 }

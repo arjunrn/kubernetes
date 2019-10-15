@@ -65,13 +65,13 @@ var (
 		Policies: []autoscalingv2.HPAScalingPolicy{
 			{
 				Type:          autoscalingv2.PodsScalingPolicy,
-				Value:         &scaleUpLimitMinimumPods,
-				PeriodSeconds: &scaleUpPeriod,
+				Value:         scaleUpLimitMinimumPods,
+				PeriodSeconds: scaleUpPeriod,
 			},
 			{
 				Type:          autoscalingv2.PercentScalingPolicy,
-				Value:         &scaleUpLimitPercent,
-				PeriodSeconds: &scaleUpPeriod,
+				Value:         scaleUpLimitPercent,
+				PeriodSeconds: scaleUpPeriod,
 			},
 		},
 	}
@@ -84,8 +84,8 @@ var (
 		Policies: []autoscalingv2.HPAScalingPolicy{
 			{
 				Type:          autoscalingv2.PercentScalingPolicy,
-				Value:         &scaleDownLimitPercent,
-				PeriodSeconds: &scaleDownPeriod,
+				Value:         scaleDownLimitPercent,
+				PeriodSeconds: scaleDownPeriod,
 			},
 		},
 	}
@@ -1030,19 +1030,21 @@ func calculateScaleUpLimitWithBehaviors(currentReplicas int32, scaleEvents []tim
 	var result int32 = 0
 	var proposed int32
 	var selectPolicyFn func(int32, int32) int32
-	if *behavior.SelectPolicy == autoscalingv2.MinPolicySelect {
+	if *behavior.SelectPolicy == autoscalingv2.DisabledPolicySelect {
+		return currentReplicas // Scaling is disabled
+	} else if *behavior.SelectPolicy == autoscalingv2.MinPolicySelect {
 		selectPolicyFn = min // For scaling up, the lowest change ('min' policy) produces a minimum value
 	} else {
 		selectPolicyFn = max // Use the default policy otherwise to produce a highest possible change
 	}
 	for _, policy := range behavior.Policies {
-		replicasAddedInCurrentPeriod := getReplicasChangePerPeriod(*policy.PeriodSeconds, scaleEvents)
+		replicasAddedInCurrentPeriod := getReplicasChangePerPeriod(policy.PeriodSeconds, scaleEvents)
 		periodStartReplicas := currentReplicas - replicasAddedInCurrentPeriod
 		if policy.Type == autoscalingv2.PodsScalingPolicy {
-			proposed = int32(periodStartReplicas + *policy.Value)
+			proposed = int32(periodStartReplicas + policy.Value)
 		} else if policy.Type == autoscalingv2.PercentScalingPolicy {
 			// the proposal has to be rounded up because the proposed change might not increase the replica count causing the target to never scale up
-			proposed = int32(math.Ceil(float64(periodStartReplicas) * (1 + float64(*policy.Value)/100)))
+			proposed = int32(math.Ceil(float64(periodStartReplicas) * (1 + float64(policy.Value)/100)))
 		}
 		result = selectPolicyFn(result, proposed)
 	}
@@ -1056,18 +1058,20 @@ func calculateScaleDownLimitWithBehaviors(currentReplicas int32, scaleEvents []t
 	var result int32 = math.MaxInt32
 	var proposed int32
 	var selectPolicyFn func(int32, int32) int32
-	if *behavior.SelectPolicy == autoscalingv2.MinPolicySelect {
+	if *behavior.SelectPolicy == autoscalingv2.DisabledPolicySelect {
+		return currentReplicas // Scaling is disabled
+	} else if *behavior.SelectPolicy == autoscalingv2.MinPolicySelect {
 		selectPolicyFn = max // For scaling down, the lowest change ('min' policy) produces a maximum value
 	} else {
 		selectPolicyFn = min // Use the default policy otherwise to produce a highest possible change
 	}
 	for _, policy := range behavior.Policies {
-		replicasDeletedInCurrentPeriod := getReplicasChangePerPeriod(*policy.PeriodSeconds, scaleEvents)
+		replicasDeletedInCurrentPeriod := getReplicasChangePerPeriod(policy.PeriodSeconds, scaleEvents)
 		periodStartReplicas := currentReplicas + replicasDeletedInCurrentPeriod
 		if policy.Type == autoscalingv2.PodsScalingPolicy {
-			proposed = periodStartReplicas - *policy.Value
+			proposed = periodStartReplicas - policy.Value
 		} else if policy.Type == autoscalingv2.PercentScalingPolicy {
-			proposed = int32(float64(periodStartReplicas) * (1 - float64(*policy.Value)/100))
+			proposed = int32(float64(periodStartReplicas) * (1 - float64(policy.Value)/100))
 		}
 		result = selectPolicyFn(result, proposed)
 	}
