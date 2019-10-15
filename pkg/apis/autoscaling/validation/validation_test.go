@@ -96,6 +96,9 @@ func TestValidateScale(t *testing.T) {
 
 func TestValidateBehavior(t *testing.T) {
 	maxPolicy := autoscaling.ScalingPolicySelect("max")
+	minPolicy := autoscaling.ScalingPolicySelect("min")
+	disabledPolicy := autoscaling.ScalingPolicySelect("disabled")
+	incorrectPolicy := autoscaling.ScalingPolicySelect("incorrect")
 	successCases := []autoscaling.HorizontalPodAutoscalerBehavior{
 		{
 			ScaleUp:   nil,
@@ -104,11 +107,11 @@ func TestValidateBehavior(t *testing.T) {
 		{
 			ScaleUp: &autoscaling.HPAScalingRules{
 				StabilizationWindowSeconds: utilpointer.Int32Ptr(120),
-				SelectPolicy:               &maxPolicy,
+				SelectPolicy:               &minPolicy,
 			},
 			ScaleDown: &autoscaling.HPAScalingRules{
 				StabilizationWindowSeconds: utilpointer.Int32Ptr(120),
-				SelectPolicy:               &maxPolicy,
+				SelectPolicy:               &disabledPolicy,
 			},
 		},
 		{
@@ -118,23 +121,23 @@ func TestValidateBehavior(t *testing.T) {
 				Policies: []autoscaling.HPAScalingPolicy{
 					{
 						Type:          autoscaling.PodsScalingPolicy,
-						Value:         utilpointer.Int32Ptr(1),
-						PeriodSeconds: utilpointer.Int32Ptr(2),
+						Value:         1,
+						PeriodSeconds: 2,
 					},
 					{
 						Type:          autoscaling.PercentScalingPolicy,
-						Value:         utilpointer.Int32Ptr(3),
-						PeriodSeconds: utilpointer.Int32Ptr(4),
+						Value:         3,
+						PeriodSeconds: 4,
 					},
 					{
 						Type:          autoscaling.PodsScalingPolicy,
-						Value:         utilpointer.Int32Ptr(5),
-						PeriodSeconds: utilpointer.Int32Ptr(6),
+						Value:         5,
+						PeriodSeconds: 6,
 					},
 					{
 						Type:          autoscaling.PercentScalingPolicy,
-						Value:         utilpointer.Int32Ptr(7),
-						PeriodSeconds: utilpointer.Int32Ptr(8),
+						Value:         7,
+						PeriodSeconds: 8,
 					},
 				},
 			},
@@ -144,23 +147,23 @@ func TestValidateBehavior(t *testing.T) {
 				Policies: []autoscaling.HPAScalingPolicy{
 					{
 						Type:          autoscaling.PodsScalingPolicy,
-						Value:         utilpointer.Int32Ptr(1),
-						PeriodSeconds: utilpointer.Int32Ptr(2),
+						Value:         1,
+						PeriodSeconds: 2,
 					},
 					{
 						Type:          autoscaling.PercentScalingPolicy,
-						Value:         utilpointer.Int32Ptr(3),
-						PeriodSeconds: utilpointer.Int32Ptr(4),
+						Value:         3,
+						PeriodSeconds: 4,
 					},
 					{
 						Type:          autoscaling.PodsScalingPolicy,
-						Value:         utilpointer.Int32Ptr(5),
-						PeriodSeconds: utilpointer.Int32Ptr(6),
+						Value:         5,
+						PeriodSeconds: 6,
 					},
 					{
 						Type:          autoscaling.PercentScalingPolicy,
-						Value:         utilpointer.Int32Ptr(7),
-						PeriodSeconds: utilpointer.Int32Ptr(8),
+						Value:         7,
+						PeriodSeconds: 8,
 					},
 				},
 			},
@@ -179,11 +182,26 @@ func TestValidateBehavior(t *testing.T) {
 		{
 			behavior: autoscaling.HorizontalPodAutoscalerBehavior{
 				ScaleUp: &autoscaling.HPAScalingRules{
+					SelectPolicy: &incorrectPolicy,
+					Policies: []autoscaling.HPAScalingPolicy{
+						{
+							Type:          autoscaling.HPAScalingPolicyType("pods"),
+							Value:         7,
+							PeriodSeconds: 8,
+						},
+					},
+				},
+			},
+			msg: "spec.behavior.scaleUp.selectPolicy: Invalid value: \"incorrect\": must be max, min, or disabled",
+		},
+		{
+			behavior: autoscaling.HorizontalPodAutoscalerBehavior{
+				ScaleUp: &autoscaling.HPAScalingRules{
 					Policies: []autoscaling.HPAScalingPolicy{
 						{
 							Type:          autoscaling.HPAScalingPolicyType("hm"),
-							Value:         utilpointer.Int32Ptr(7),
-							PeriodSeconds: utilpointer.Int32Ptr(8),
+							Value:         7,
+							PeriodSeconds: 8,
 						},
 					},
 				},
@@ -196,12 +214,12 @@ func TestValidateBehavior(t *testing.T) {
 					Policies: []autoscaling.HPAScalingPolicy{
 						{
 							Type:  autoscaling.PodsScalingPolicy,
-							Value: utilpointer.Int32Ptr(8),
+							Value: 8,
 						},
 					},
 				},
 			},
-			msg: "spec.behavior.scaleUp.policies[0].periodSeconds: Required value: must specify a policy periodSeconds",
+			msg: "spec.behavior.scaleUp.policies[0].periodSeconds: Invalid value: 0: must be greater than zero",
 		},
 		{
 			behavior: autoscaling.HorizontalPodAutoscalerBehavior{
@@ -209,12 +227,12 @@ func TestValidateBehavior(t *testing.T) {
 					Policies: []autoscaling.HPAScalingPolicy{
 						{
 							Type:          autoscaling.PodsScalingPolicy,
-							PeriodSeconds: utilpointer.Int32Ptr(8),
+							PeriodSeconds: 8,
 						},
 					},
 				},
 			},
-			msg: "spec.behavior.scaleUp.policies[0].value: Required value: must specify a policy value",
+			msg: "spec.behavior.scaleUp.policies[0].value: Invalid value: 0: must be greater than zero",
 		},
 		{
 			behavior: autoscaling.HorizontalPodAutoscalerBehavior{
@@ -222,13 +240,13 @@ func TestValidateBehavior(t *testing.T) {
 					Policies: []autoscaling.HPAScalingPolicy{
 						{
 							Type:          autoscaling.PodsScalingPolicy,
-							PeriodSeconds: utilpointer.Int32Ptr(-1),
-							Value:         utilpointer.Int32Ptr(1),
+							PeriodSeconds: -1,
+							Value:         1,
 						},
 					},
 				},
 			},
-			msg: "spec.behavior.scaleUp.policies[0].periodSeconds: Invalid value: -1: must be greater than or equal to zero",
+			msg: "spec.behavior.scaleUp.policies[0].periodSeconds: Invalid value: -1: must be greater than zero",
 		},
 		{
 			behavior: autoscaling.HorizontalPodAutoscalerBehavior{
@@ -236,13 +254,13 @@ func TestValidateBehavior(t *testing.T) {
 					Policies: []autoscaling.HPAScalingPolicy{
 						{
 							Type:          autoscaling.PodsScalingPolicy,
-							PeriodSeconds: utilpointer.Int32Ptr(1),
-							Value:         utilpointer.Int32Ptr(-1),
+							PeriodSeconds: 1,
+							Value:         -1,
 						},
 					},
 				},
 			},
-			msg: "spec.behavior.scaleUp.policies[0].value: Invalid value: -1: must be greater than or equal to zero",
+			msg: "spec.behavior.scaleUp.policies[0].value: Invalid value: -1: must be greater than zero",
 		},
 		{
 			behavior: autoscaling.HorizontalPodAutoscalerBehavior{
@@ -250,8 +268,8 @@ func TestValidateBehavior(t *testing.T) {
 					Policies: []autoscaling.HPAScalingPolicy{
 						{
 							Type:          autoscaling.HPAScalingPolicyType("hm"),
-							Value:         utilpointer.Int32Ptr(7),
-							PeriodSeconds: utilpointer.Int32Ptr(8),
+							Value:         7,
+							PeriodSeconds: 8,
 						},
 					},
 				},
@@ -264,12 +282,12 @@ func TestValidateBehavior(t *testing.T) {
 					Policies: []autoscaling.HPAScalingPolicy{
 						{
 							Type:  autoscaling.PodsScalingPolicy,
-							Value: utilpointer.Int32Ptr(8),
+							Value: 8,
 						},
 					},
 				},
 			},
-			msg: "spec.behavior.scaleDown.policies[0].periodSeconds: Required value: must specify a policy periodSeconds",
+			msg: "spec.behavior.scaleDown.policies[0].periodSeconds: Invalid value: 0: must be greater than zero",
 		},
 		{
 			behavior: autoscaling.HorizontalPodAutoscalerBehavior{
@@ -277,12 +295,12 @@ func TestValidateBehavior(t *testing.T) {
 					Policies: []autoscaling.HPAScalingPolicy{
 						{
 							Type:          autoscaling.PodsScalingPolicy,
-							PeriodSeconds: utilpointer.Int32Ptr(8),
+							PeriodSeconds: 8,
 						},
 					},
 				},
 			},
-			msg: "spec.behavior.scaleDown.policies[0].value: Required value: must specify a policy value",
+			msg: "spec.behavior.scaleDown.policies[0].value: Invalid value: 0: must be greater than zero",
 		},
 		{
 			behavior: autoscaling.HorizontalPodAutoscalerBehavior{
@@ -290,13 +308,13 @@ func TestValidateBehavior(t *testing.T) {
 					Policies: []autoscaling.HPAScalingPolicy{
 						{
 							Type:          autoscaling.PodsScalingPolicy,
-							PeriodSeconds: utilpointer.Int32Ptr(-1),
-							Value:         utilpointer.Int32Ptr(1),
+							PeriodSeconds: -1,
+							Value:         1,
 						},
 					},
 				},
 			},
-			msg: "spec.behavior.scaleDown.policies[0].periodSeconds: Invalid value: -1: must be greater than or equal to zero",
+			msg: "spec.behavior.scaleDown.policies[0].periodSeconds: Invalid value: -1: must be greater than zero",
 		},
 		{
 			behavior: autoscaling.HorizontalPodAutoscalerBehavior{
@@ -304,13 +322,13 @@ func TestValidateBehavior(t *testing.T) {
 					Policies: []autoscaling.HPAScalingPolicy{
 						{
 							Type:          autoscaling.PodsScalingPolicy,
-							PeriodSeconds: utilpointer.Int32Ptr(1),
-							Value:         utilpointer.Int32Ptr(-1),
+							PeriodSeconds: 1,
+							Value:         -1,
 						},
 					},
 				},
 			},
-			msg: "spec.behavior.scaleDown.policies[0].value: Invalid value: -1: must be greater than or equal to zero",
+			msg: "spec.behavior.scaleDown.policies[0].value: Invalid value: -1: must be greater than zero",
 		},
 	}
 	for _, c := range errorCases {

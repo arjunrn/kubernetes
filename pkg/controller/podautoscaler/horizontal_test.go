@@ -2981,11 +2981,11 @@ func generateBehavior(pods, percent, period *int32) *autoscalingv2.HPAScalingRul
 	directionBehavior := autoscalingv2.HPAScalingRules{}
 	if pods != nil {
 		directionBehavior.Policies = append(directionBehavior.Policies,
-			autoscalingv2.HPAScalingPolicy{Type: autoscalingv2.PodsScalingPolicy, Value: pods, PeriodSeconds: period})
+			autoscalingv2.HPAScalingPolicy{Type: autoscalingv2.PodsScalingPolicy, Value: *pods, PeriodSeconds: *period})
 	}
 	if percent != nil {
 		directionBehavior.Policies = append(directionBehavior.Policies,
-			autoscalingv2.HPAScalingPolicy{Type: autoscalingv2.PercentScalingPolicy, Value: percent, PeriodSeconds: period})
+			autoscalingv2.HPAScalingPolicy{Type: autoscalingv2.PercentScalingPolicy, Value: *percent, PeriodSeconds: *period})
 	}
 	return &directionBehavior
 }
@@ -3103,7 +3103,7 @@ func TestScalingWithRules(t *testing.T) {
 		scaleUpEvents   []timestampedScaleEvent
 		scaleDownEvents []timestampedScaleEvent
 		// HPA Spec arguments
-		specMinReplicas         *int32
+		specMinReplicas         int32
 		specMaxReplicas         int32
 		policyUpPods            *int32
 		policyUpPercent         *int32
@@ -3125,7 +3125,7 @@ func TestScalingWithRules(t *testing.T) {
 		{
 			currentReplicas:              5,
 			prenormalizedDesiredReplicas: 7,
-			specMinReplicas:              utilpointer.Int32Ptr(3),
+			specMinReplicas:              3,
 			specMaxReplicas:              8,
 			expectedReplicas:             7,
 			expectedCondition:            "DesiredWithinRange",
@@ -3134,7 +3134,7 @@ func TestScalingWithRules(t *testing.T) {
 		{
 			currentReplicas:              3,
 			prenormalizedDesiredReplicas: 1,
-			specMinReplicas:              utilpointer.Int32Ptr(2),
+			specMinReplicas:              2,
 			specMaxReplicas:              8,
 			expectedReplicas:             2,
 			expectedCondition:            "TooFewReplicas",
@@ -3143,7 +3143,7 @@ func TestScalingWithRules(t *testing.T) {
 		{
 			currentReplicas:              1,
 			prenormalizedDesiredReplicas: 0,
-			specMinReplicas:              utilpointer.Int32Ptr(0),
+			specMinReplicas:              0,
 			specMaxReplicas:              10,
 			expectedReplicas:             0,
 			expectedCondition:            "DesiredWithinRange",
@@ -3152,7 +3152,7 @@ func TestScalingWithRules(t *testing.T) {
 		{
 			currentReplicas:              20,
 			prenormalizedDesiredReplicas: 1000,
-			specMinReplicas:              utilpointer.Int32Ptr(1),
+			specMinReplicas:              1,
 			specMaxReplicas:              10,
 			expectedReplicas:             10,
 			expectedCondition:            "TooManyReplicas",
@@ -3161,7 +3161,7 @@ func TestScalingWithRules(t *testing.T) {
 		{
 			currentReplicas:              100,
 			prenormalizedDesiredReplicas: 1000,
-			specMinReplicas:              utilpointer.Int32Ptr(100),
+			specMinReplicas:              100,
 			specMaxReplicas:              150,
 			expectedReplicas:             150,
 			expectedCondition:            "TooManyReplicas",
@@ -3170,7 +3170,7 @@ func TestScalingWithRules(t *testing.T) {
 		{
 			currentReplicas:              3,
 			prenormalizedDesiredReplicas: 1000,
-			specMinReplicas:              utilpointer.Int32Ptr(1),
+			specMinReplicas:              1,
 			specMaxReplicas:              2000,
 			expectedReplicas:             4,
 			expectedCondition:            "ScaleUpLimit",
@@ -3181,7 +3181,7 @@ func TestScalingWithRules(t *testing.T) {
 		{
 			currentReplicas:              1000,
 			prenormalizedDesiredReplicas: 3,
-			specMinReplicas:              utilpointer.Int32Ptr(3),
+			specMinReplicas:              3,
 			specMaxReplicas:              2000,
 			policyDownPods:               utilpointer.Int32Ptr(20),
 			policyDownPeriodSeconds:      utilpointer.Int32Ptr(60),
@@ -3193,7 +3193,7 @@ func TestScalingWithRules(t *testing.T) {
 		// ScaleUp without PeriodSeconds usage
 		{
 			name:                         "scaleUp with default behavior",
-			specMinReplicas:              utilpointer.Int32Ptr(1),
+			specMinReplicas:              1,
 			specMaxReplicas:              1000,
 			currentReplicas:              10,
 			prenormalizedDesiredReplicas: 50,
@@ -3202,7 +3202,7 @@ func TestScalingWithRules(t *testing.T) {
 		},
 		{
 			name:                         "scaleUp with pods policy larger than percent policy",
-			specMinReplicas:              utilpointer.Int32Ptr(1),
+			specMinReplicas:              1,
 			specMaxReplicas:              1000,
 			policyUpPods:                 utilpointer.Int32Ptr(100),
 			policyUpPercent:              utilpointer.Int32Ptr(100),
@@ -3214,7 +3214,7 @@ func TestScalingWithRules(t *testing.T) {
 		},
 		{
 			name:                         "scaleUp with percent policy larger than pods policy",
-			specMinReplicas:              utilpointer.Int32Ptr(1),
+			specMinReplicas:              1,
 			specMaxReplicas:              1000,
 			policyUpPods:                 utilpointer.Int32Ptr(2),
 			policyUpPercent:              utilpointer.Int32Ptr(100),
@@ -3226,7 +3226,7 @@ func TestScalingWithRules(t *testing.T) {
 		},
 		{
 			name:                         "scaleUp with spec MaxReplicas limitation with large pod policy",
-			specMinReplicas:              nil,
+			specMinReplicas:              1,
 			specMaxReplicas:              1000,
 			policyUpPods:                 utilpointer.Int32Ptr(100),
 			policyUpPeriodSeconds:        utilpointer.Int32Ptr(60),
@@ -3237,7 +3237,7 @@ func TestScalingWithRules(t *testing.T) {
 		},
 		{
 			name:                         "scaleUp with spec MaxReplicas limitation with large percent policy",
-			specMinReplicas:              nil,
+			specMinReplicas:              1,
 			specMaxReplicas:              1000,
 			policyUpPercent:              utilpointer.Int32Ptr(10000),
 			policyUpPeriodSeconds:        utilpointer.Int32Ptr(60),
@@ -3248,7 +3248,7 @@ func TestScalingWithRules(t *testing.T) {
 		},
 		{
 			name:                         "scaleUp with pod policy limitation",
-			specMinReplicas:              nil,
+			specMinReplicas:              1,
 			specMaxReplicas:              1000,
 			policyUpPods:                 utilpointer.Int32Ptr(30),
 			policyUpPeriodSeconds:        utilpointer.Int32Ptr(60),
@@ -3259,7 +3259,7 @@ func TestScalingWithRules(t *testing.T) {
 		},
 		{
 			name:                         "scaleUp with percent policy limitation",
-			specMinReplicas:              nil,
+			specMinReplicas:              1,
 			specMaxReplicas:              1000,
 			policyUpPercent:              utilpointer.Int32Ptr(200),
 			policyUpPeriodSeconds:        utilpointer.Int32Ptr(60),
@@ -3270,7 +3270,7 @@ func TestScalingWithRules(t *testing.T) {
 		},
 		{
 			name:                         "scaleDown with percent policy larger than pod policy",
-			specMinReplicas:              utilpointer.Int32Ptr(1),
+			specMinReplicas:              1,
 			specMaxReplicas:              1000,
 			policyDownPods:               utilpointer.Int32Ptr(20),
 			policyDownPercent:            utilpointer.Int32Ptr(1),
@@ -3282,7 +3282,7 @@ func TestScalingWithRules(t *testing.T) {
 		},
 		{
 			name:                         "scaleDown with pod policy larger than percent policy",
-			specMinReplicas:              utilpointer.Int32Ptr(1),
+			specMinReplicas:              1,
 			specMaxReplicas:              1000,
 			policyDownPods:               utilpointer.Int32Ptr(2),
 			policyDownPercent:            utilpointer.Int32Ptr(1),
@@ -3294,7 +3294,7 @@ func TestScalingWithRules(t *testing.T) {
 		},
 		{
 			name:                         "scaleDown with spec MinReplicas=nil limitation with large pod policy",
-			specMinReplicas:              nil,
+			specMinReplicas:              1,
 			specMaxReplicas:              1000,
 			policyDownPods:               utilpointer.Int32Ptr(100),
 			policyDownPeriodSeconds:      utilpointer.Int32Ptr(60),
@@ -3305,7 +3305,7 @@ func TestScalingWithRules(t *testing.T) {
 		},
 		{
 			name:                         "scaleDown with spec MinReplicas limitation with large pod policy",
-			specMinReplicas:              utilpointer.Int32Ptr(1),
+			specMinReplicas:              1,
 			specMaxReplicas:              1000,
 			policyDownPods:               utilpointer.Int32Ptr(100),
 			policyDownPeriodSeconds:      utilpointer.Int32Ptr(60),
@@ -3316,7 +3316,7 @@ func TestScalingWithRules(t *testing.T) {
 		},
 		{
 			name:                         "scaleDown with spec MinReplicas limitation with large percent policy",
-			specMinReplicas:              utilpointer.Int32Ptr(5),
+			specMinReplicas:              5,
 			specMaxReplicas:              1000,
 			policyDownPercent:            utilpointer.Int32Ptr(100), // 100% removal - is always to 0 => limited by MinReplicas
 			currentReplicas:              10,
@@ -3326,7 +3326,7 @@ func TestScalingWithRules(t *testing.T) {
 		},
 		{
 			name:                         "scaleDown with pod policy limitation",
-			specMinReplicas:              nil,
+			specMinReplicas:              1,
 			specMaxReplicas:              1000,
 			policyDownPods:               utilpointer.Int32Ptr(5),
 			policyDownPeriodSeconds:      utilpointer.Int32Ptr(60),
@@ -3338,7 +3338,7 @@ func TestScalingWithRules(t *testing.T) {
 		},
 		{
 			name:                         "scaleDown with percent policy limitation",
-			specMinReplicas:              nil,
+			specMinReplicas:              1,
 			specMaxReplicas:              1000,
 			policyDownPercent:            utilpointer.Int32Ptr(50),
 			currentReplicas:              10,
@@ -3349,7 +3349,7 @@ func TestScalingWithRules(t *testing.T) {
 		{
 			name:                         "scaleUp with spec MaxReplicas limitation with large pod policy and events",
 			scaleUpEvents:                generateEvents([]int{1, 5, 9}, 120),
-			specMinReplicas:              nil,
+			specMinReplicas:              1,
 			specMaxReplicas:              200,
 			policyUpPeriodSeconds:        utilpointer.Int32Ptr(60),
 			policyUpPods:                 utilpointer.Int32Ptr(300),
@@ -3361,7 +3361,7 @@ func TestScalingWithRules(t *testing.T) {
 		{
 			name:                         "scaleUp with spec MaxReplicas limitation with large percent policy and events",
 			scaleUpEvents:                generateEvents([]int{1, 5, 9}, 120),
-			specMinReplicas:              nil,
+			specMinReplicas:              1,
 			specMaxReplicas:              200,
 			policyUpPeriodSeconds:        utilpointer.Int32Ptr(60),
 			policyUpPercent:              utilpointer.Int32Ptr(10000),
@@ -3375,7 +3375,7 @@ func TestScalingWithRules(t *testing.T) {
 			// in this case we shouldn't allow scale up, though, the naive formula will suggest that scaleUplimit is less then CurrentReplicas (100-15+5 < 100)
 			name:                         "scaleUp with currentReplicas limitation with rate.PeriodSeconds with a lot of recent scale up events",
 			scaleUpEvents:                generateEvents([]int{1, 5, 9}, 120),
-			specMinReplicas:              nil,
+			specMinReplicas:              1,
 			specMaxReplicas:              1000,
 			policyUpPeriodSeconds:        utilpointer.Int32Ptr(120),
 			policyUpPods:                 utilpointer.Int32Ptr(5),
@@ -3388,7 +3388,7 @@ func TestScalingWithRules(t *testing.T) {
 		{
 			name:                         "scaleUp with pod policy and previous scale up events",
 			scaleUpEvents:                generateEvents([]int{1, 5, 9}, 120),
-			specMinReplicas:              nil,
+			specMinReplicas:              1,
 			specMaxReplicas:              1000,
 			policyUpPeriodSeconds:        utilpointer.Int32Ptr(120),
 			policyUpPods:                 utilpointer.Int32Ptr(150),
@@ -3400,7 +3400,7 @@ func TestScalingWithRules(t *testing.T) {
 		{
 			name:                         "scaleUp with percent policy and previous scale up events",
 			scaleUpEvents:                generateEvents([]int{1, 5, 9}, 120),
-			specMinReplicas:              nil,
+			specMinReplicas:              1,
 			specMaxReplicas:              1000,
 			policyUpPeriodSeconds:        utilpointer.Int32Ptr(120),
 			policyUpPercent:              utilpointer.Int32Ptr(200),
@@ -3413,7 +3413,7 @@ func TestScalingWithRules(t *testing.T) {
 		{
 			name:                         "scaleDown with default policy and previous events",
 			scaleDownEvents:              generateEvents([]int{1, 5, 9}, 120),
-			specMinReplicas:              utilpointer.Int32Ptr(1),
+			specMinReplicas:              1,
 			specMaxReplicas:              1000,
 			currentReplicas:              10,
 			prenormalizedDesiredReplicas: 5,
@@ -3423,7 +3423,7 @@ func TestScalingWithRules(t *testing.T) {
 		{
 			name:                         "scaleDown with spec MinReplicas=nil limitation with large pod policy and previous events",
 			scaleDownEvents:              generateEvents([]int{1, 5, 9}, 120),
-			specMinReplicas:              nil,
+			specMinReplicas:              1,
 			specMaxReplicas:              1000,
 			policyDownPeriodSeconds:      utilpointer.Int32Ptr(120),
 			policyDownPods:               utilpointer.Int32Ptr(115),
@@ -3435,7 +3435,7 @@ func TestScalingWithRules(t *testing.T) {
 		{
 			name:                         "scaleDown with spec MinReplicas limitation with large pod policy and previous events",
 			scaleDownEvents:              generateEvents([]int{1, 5, 9}, 120),
-			specMinReplicas:              utilpointer.Int32Ptr(5),
+			specMinReplicas:              5,
 			specMaxReplicas:              1000,
 			policyDownPeriodSeconds:      utilpointer.Int32Ptr(120),
 			policyDownPods:               utilpointer.Int32Ptr(130),
@@ -3447,7 +3447,7 @@ func TestScalingWithRules(t *testing.T) {
 		{
 			name:                         "scaleDown with spec MinReplicas limitation with large percent policy and previous events",
 			scaleDownEvents:              generateEvents([]int{1, 5, 9}, 120),
-			specMinReplicas:              utilpointer.Int32Ptr(5),
+			specMinReplicas:              5,
 			specMaxReplicas:              1000,
 			policyDownPeriodSeconds:      utilpointer.Int32Ptr(120),
 			policyDownPercent:            utilpointer.Int32Ptr(100), // 100% removal - is always to 0 => limited by MinReplicas
@@ -3459,7 +3459,7 @@ func TestScalingWithRules(t *testing.T) {
 		{
 			name:                         "scaleDown with pod policy limitation and previous events",
 			scaleDownEvents:              generateEvents([]int{1, 5, 9}, 120),
-			specMinReplicas:              nil,
+			specMinReplicas:              1,
 			specMaxReplicas:              1000,
 			policyDownPeriodSeconds:      utilpointer.Int32Ptr(120),
 			policyDownPods:               utilpointer.Int32Ptr(5),
@@ -3471,7 +3471,7 @@ func TestScalingWithRules(t *testing.T) {
 		{
 			name:                         "scaleDown with percent policy limitation and previous events",
 			scaleDownEvents:              generateEvents([]int{2, 4, 6}, 120),
-			specMinReplicas:              nil,
+			specMinReplicas:              1,
 			specMaxReplicas:              1000,
 			policyDownPeriodSeconds:      utilpointer.Int32Ptr(120),
 			policyDownPercent:            utilpointer.Int32Ptr(50),
@@ -3485,7 +3485,7 @@ func TestScalingWithRules(t *testing.T) {
 			// in this case we shouldn't allow scale down, though, the naive formula will suggest that scaleDownlimit is more then CurrentReplicas (100+30-10% > 100)
 			name:                         "scaleDown with previous events preventing further scale down",
 			scaleDownEvents:              generateEvents([]int{10, 10, 10}, 120),
-			specMinReplicas:              nil,
+			specMinReplicas:              1,
 			specMaxReplicas:              1000,
 			policyDownPeriodSeconds:      utilpointer.Int32Ptr(120),
 			policyDownPercent:            utilpointer.Int32Ptr(10),
@@ -3498,7 +3498,7 @@ func TestScalingWithRules(t *testing.T) {
 			// corner case, the same as above, but calculation shows that we should go below zero
 			name:                         "scaleDown with with previous events still allowing more scale down",
 			scaleDownEvents:              generateEvents([]int{10, 10, 10}, 120),
-			specMinReplicas:              nil,
+			specMinReplicas:              1,
 			specMaxReplicas:              1000,
 			policyDownPeriodSeconds:      utilpointer.Int32Ptr(120),
 			policyDownPercent:            utilpointer.Int32Ptr(1000),
@@ -3544,10 +3544,10 @@ func TestScalingWithRules(t *testing.T) {
 
 func TestGenerateScaleUpBehavior(t *testing.T) {
 	type TestCase struct {
-		rateUpPods                 *int32
-		rateUpPodsPeriodSeconds    *int32
-		rateUpPercent              *int32
-		rateUpPercentPeriodSeconds *int32
+		rateUpPods                 int32
+		rateUpPodsPeriodSeconds    int32
+		rateUpPercent              int32
+		rateUpPercentPeriodSeconds int32
 		stabilizationSeconds       *int32
 		selectPolicy               *autoscalingv2.ScalingPolicySelect
 
@@ -3562,64 +3562,64 @@ func TestGenerateScaleUpBehavior(t *testing.T) {
 		{
 			annotation: "Default values",
 			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
-				{Type: autoscalingv2.PodsScalingPolicy, Value: utilpointer.Int32Ptr(4), PeriodSeconds: utilpointer.Int32Ptr(60)},
-				{Type: autoscalingv2.PercentScalingPolicy, Value: utilpointer.Int32Ptr(100), PeriodSeconds: utilpointer.Int32Ptr(60)},
+				{Type: autoscalingv2.PodsScalingPolicy, Value: 4, PeriodSeconds: 60},
+				{Type: autoscalingv2.PercentScalingPolicy, Value: 100, PeriodSeconds: 60},
 			},
 			expectedStabilization: 0, // just to show that we always check that default expected stabilization is 0
 			expectedSelectPolicy:  "max",
 		},
 		{
 			annotation:                 "All parameters are specified",
-			rateUpPods:                 utilpointer.Int32Ptr(1),
-			rateUpPodsPeriodSeconds:    utilpointer.Int32Ptr(2),
-			rateUpPercent:              utilpointer.Int32Ptr(3),
-			rateUpPercentPeriodSeconds: utilpointer.Int32Ptr(4),
+			rateUpPods:                 1,
+			rateUpPodsPeriodSeconds:    2,
+			rateUpPercent:              3,
+			rateUpPercentPeriodSeconds: 4,
 			stabilizationSeconds:       utilpointer.Int32Ptr(25),
 			selectPolicy:               &maxPolicy,
 			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
-				{Type: autoscalingv2.PodsScalingPolicy, Value: utilpointer.Int32Ptr(1), PeriodSeconds: utilpointer.Int32Ptr(2)},
-				{Type: autoscalingv2.PercentScalingPolicy, Value: utilpointer.Int32Ptr(3), PeriodSeconds: utilpointer.Int32Ptr(4)},
+				{Type: autoscalingv2.PodsScalingPolicy, Value: 1, PeriodSeconds: 2},
+				{Type: autoscalingv2.PercentScalingPolicy, Value: 3, PeriodSeconds: 4},
 			},
 			expectedStabilization: 25,
 			expectedSelectPolicy:  "max",
 		},
 		{
 			annotation:              "Pod policy is specified",
-			rateUpPods:              utilpointer.Int32Ptr(1),
-			rateUpPodsPeriodSeconds: utilpointer.Int32Ptr(2),
+			rateUpPods:              1,
+			rateUpPodsPeriodSeconds: 2,
 			selectPolicy:            &minPolicy,
 			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
-				{Type: autoscalingv2.PodsScalingPolicy, Value: utilpointer.Int32Ptr(1), PeriodSeconds: utilpointer.Int32Ptr(2)},
+				{Type: autoscalingv2.PodsScalingPolicy, Value: 1, PeriodSeconds: 2},
 			},
 			expectedSelectPolicy: "min",
 		},
 		{
 			annotation:                 "Percent policy is specified",
-			rateUpPercent:              utilpointer.Int32Ptr(7),
-			rateUpPercentPeriodSeconds: utilpointer.Int32Ptr(10),
+			rateUpPercent:              7,
+			rateUpPercentPeriodSeconds: 10,
 			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
-				{Type: autoscalingv2.PercentScalingPolicy, Value: utilpointer.Int32Ptr(7), PeriodSeconds: utilpointer.Int32Ptr(10)},
+				{Type: autoscalingv2.PercentScalingPolicy, Value: 7, PeriodSeconds: 10},
 			},
 			expectedSelectPolicy: "max",
 		},
 		{
 			annotation:              "Pod policy and stabilization window are specified",
-			rateUpPodsPeriodSeconds: utilpointer.Int32Ptr(2),
+			rateUpPodsPeriodSeconds: 2,
 			stabilizationSeconds:    utilpointer.Int32Ptr(25),
-			rateUpPods:              utilpointer.Int32Ptr(4),
+			rateUpPods:              4,
 			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
-				{Type: autoscalingv2.PodsScalingPolicy, Value: utilpointer.Int32Ptr(4), PeriodSeconds: utilpointer.Int32Ptr(2)},
+				{Type: autoscalingv2.PodsScalingPolicy, Value: 4, PeriodSeconds: 2},
 			},
 			expectedStabilization: 25,
 			expectedSelectPolicy:  "max",
 		},
 		{
 			annotation:                 "Percent policy and stabilization window are specified",
-			rateUpPercent:              utilpointer.Int32Ptr(7),
-			rateUpPercentPeriodSeconds: utilpointer.Int32Ptr(60),
+			rateUpPercent:              7,
+			rateUpPercentPeriodSeconds: 60,
 			stabilizationSeconds:       utilpointer.Int32Ptr(25),
 			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
-				{Type: autoscalingv2.PercentScalingPolicy, Value: utilpointer.Int32Ptr(7), PeriodSeconds: utilpointer.Int32Ptr(60)},
+				{Type: autoscalingv2.PercentScalingPolicy, Value: 7, PeriodSeconds: 60},
 			},
 			expectedStabilization: 25,
 			expectedSelectPolicy:  "max",
@@ -3631,12 +3631,12 @@ func TestGenerateScaleUpBehavior(t *testing.T) {
 				StabilizationWindowSeconds: tc.stabilizationSeconds,
 				SelectPolicy:               tc.selectPolicy,
 			}
-			if tc.rateUpPods != nil || tc.rateUpPodsPeriodSeconds != nil {
+			if tc.rateUpPods != 0 || tc.rateUpPodsPeriodSeconds != 0 {
 				scaleUpBehavior.Policies = append(scaleUpBehavior.Policies, autoscalingv2.HPAScalingPolicy{
 					Type: autoscalingv2.PodsScalingPolicy, Value: tc.rateUpPods, PeriodSeconds: tc.rateUpPodsPeriodSeconds,
 				})
 			}
-			if tc.rateUpPercent != nil || tc.rateUpPercentPeriodSeconds != nil {
+			if tc.rateUpPercent != 0 || tc.rateUpPercentPeriodSeconds != 0 {
 				scaleUpBehavior.Policies = append(scaleUpBehavior.Policies, autoscalingv2.HPAScalingPolicy{
 					Type: autoscalingv2.PercentScalingPolicy, Value: tc.rateUpPercent, PeriodSeconds: tc.rateUpPercentPeriodSeconds,
 				})
@@ -3651,10 +3651,10 @@ func TestGenerateScaleUpBehavior(t *testing.T) {
 
 func TestGenerateScaleDownBehavior(t *testing.T) {
 	type TestCase struct {
-		rateDownPods                 *int32
-		rateDownPodsPeriodSeconds    *int32
-		rateDownPercent              *int32
-		rateDownPercentPeriodSeconds *int32
+		rateDownPods                 int32
+		rateDownPodsPeriodSeconds    int32
+		rateDownPercent              int32
+		rateDownPercentPeriodSeconds int32
 		stabilizationSeconds         *int32
 		selectPolicy                 *autoscalingv2.ScalingPolicySelect
 
@@ -3669,43 +3669,43 @@ func TestGenerateScaleDownBehavior(t *testing.T) {
 		{
 			annotation: "Default values",
 			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
-				{Type: autoscalingv2.PercentScalingPolicy, Value: utilpointer.Int32Ptr(100), PeriodSeconds: utilpointer.Int32Ptr(60)},
+				{Type: autoscalingv2.PercentScalingPolicy, Value: 100, PeriodSeconds: 60},
 			},
 			expectedStabilization: 300,
 			expectedSelectPolicy:  "max",
 		},
 		{
 			annotation:                   "All parameters are specified",
-			rateDownPods:                 utilpointer.Int32Ptr(1),
-			rateDownPodsPeriodSeconds:    utilpointer.Int32Ptr(2),
-			rateDownPercent:              utilpointer.Int32Ptr(3),
-			rateDownPercentPeriodSeconds: utilpointer.Int32Ptr(4),
+			rateDownPods:                 1,
+			rateDownPodsPeriodSeconds:    2,
+			rateDownPercent:              3,
+			rateDownPercentPeriodSeconds: 4,
 			stabilizationSeconds:         utilpointer.Int32Ptr(25),
 			selectPolicy:                 &maxPolicy,
 			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
-				{Type: autoscalingv2.PodsScalingPolicy, Value: utilpointer.Int32Ptr(1), PeriodSeconds: utilpointer.Int32Ptr(2)},
-				{Type: autoscalingv2.PercentScalingPolicy, Value: utilpointer.Int32Ptr(3), PeriodSeconds: utilpointer.Int32Ptr(4)},
+				{Type: autoscalingv2.PodsScalingPolicy, Value: 1, PeriodSeconds: 2},
+				{Type: autoscalingv2.PercentScalingPolicy, Value: 3, PeriodSeconds: 4},
 			},
 			expectedStabilization: 25,
 			expectedSelectPolicy:  "max",
 		},
 		{
 			annotation:                   "Percent policy is specified",
-			rateDownPercent:              utilpointer.Int32Ptr(1),
-			rateDownPercentPeriodSeconds: utilpointer.Int32Ptr(2),
+			rateDownPercent:              1,
+			rateDownPercentPeriodSeconds: 2,
 			selectPolicy:                 &minPolicy,
 			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
-				{Type: autoscalingv2.PercentScalingPolicy, Value: utilpointer.Int32Ptr(1), PeriodSeconds: utilpointer.Int32Ptr(2)},
+				{Type: autoscalingv2.PercentScalingPolicy, Value: 1, PeriodSeconds: 2},
 			},
 			expectedStabilization: 300,
 			expectedSelectPolicy:  "min",
 		},
 		{
 			annotation:                "Pods policy is specified",
-			rateDownPods:              utilpointer.Int32Ptr(3),
-			rateDownPodsPeriodSeconds: utilpointer.Int32Ptr(4),
+			rateDownPods:              3,
+			rateDownPodsPeriodSeconds: 4,
 			expectedPolicies: []autoscalingv2.HPAScalingPolicy{
-				{Type: autoscalingv2.PodsScalingPolicy, Value: utilpointer.Int32Ptr(3), PeriodSeconds: utilpointer.Int32Ptr(4)},
+				{Type: autoscalingv2.PodsScalingPolicy, Value: 3, PeriodSeconds: 4},
 			},
 			expectedStabilization: 300,
 			expectedSelectPolicy:  "max",
@@ -3717,12 +3717,12 @@ func TestGenerateScaleDownBehavior(t *testing.T) {
 				StabilizationWindowSeconds: tc.stabilizationSeconds,
 				SelectPolicy:               tc.selectPolicy,
 			}
-			if tc.rateDownPods != nil || tc.rateDownPodsPeriodSeconds != nil {
+			if tc.rateDownPods != 0 || tc.rateDownPodsPeriodSeconds != 0 {
 				scaleDownBehavior.Policies = append(scaleDownBehavior.Policies, autoscalingv2.HPAScalingPolicy{
 					Type: autoscalingv2.PodsScalingPolicy, Value: tc.rateDownPods, PeriodSeconds: tc.rateDownPodsPeriodSeconds,
 				})
 			}
-			if tc.rateDownPercent != nil || tc.rateDownPercentPeriodSeconds != nil {
+			if tc.rateDownPercent != 0 || tc.rateDownPercentPeriodSeconds != 0 {
 				scaleDownBehavior.Policies = append(scaleDownBehavior.Policies, autoscalingv2.HPAScalingPolicy{
 					Type: autoscalingv2.PercentScalingPolicy, Value: tc.rateDownPercent, PeriodSeconds: tc.rateDownPercentPeriodSeconds,
 				})
