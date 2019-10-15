@@ -50,7 +50,7 @@ func (t *HPAUpgradeTest) Setup(f *framework.Framework) {
 		200, /* memLimit */
 		f.ClientSet,
 		f.ScalesGetter)
-	t.hpa = common.CreateCPUHorizontalPodAutoscaler(
+	t.hpa = common.CreateCPUHorizontalPodAutoscalerV1(
 		t.rc,
 		20, /* targetCPUUtilizationPercent */
 		1,  /* minPods */

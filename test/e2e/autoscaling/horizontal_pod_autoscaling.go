@@ -35,7 +35,7 @@ var _ = SIGDescribe("[Feature:HPA] Horizontal pod autoscaling (scale resource: C
 	titleUp := "Should scale from 1 pod to 3 pods and from 3 to 5"
 	titleDown := "Should scale from 5 pods to 3 pods and from 3 to 1"
 
-	SIGDescribe("[Serial] [Slow] Deployment", func() {
+	SIGDescribe("[HPACPU] [Serial] [Slow] Deployment", func() {
 		// CPU tests via deployments
 		ginkgo.It(titleUp, func() {
 			scaleUp("test-deployment", common.KindDeployment, false, rc, f)
@@ -118,7 +118,7 @@ func (scaleTest *HPAScaleTest) run(name string, kind schema.GroupVersionKind, rc
 	const timeToWait = 15 * time.Minute
 	rc = common.NewDynamicResourceConsumer(name, f.Namespace.Name, kind, scaleTest.initPods, scaleTest.totalInitialCPUUsage, 0, 0, scaleTest.perPodCPURequest, 200, f.ClientSet, f.ScalesGetter)
 	defer rc.CleanUp()
-	hpa := common.CreateCPUHorizontalPodAutoscaler(rc, scaleTest.targetCPUUtilizationPercent, scaleTest.minPods, scaleTest.maxPods)
+	hpa := common.CreateCPUHorizontalPodAutoscalerV1(rc, scaleTest.targetCPUUtilizationPercent, scaleTest.minPods, scaleTest.maxPods)
 	defer common.DeleteHorizontalPodAutoscaler(rc, hpa.Name)
 
 	rc.WaitForReplicas(scaleTest.firstScale, timeToWait)

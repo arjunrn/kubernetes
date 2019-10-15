@@ -24,6 +24,7 @@ import (
 	"time"
 
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2beta2"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -362,7 +363,12 @@ func (rc *ResourceConsumer) GetHpa(name string) (*autoscalingv1.HorizontalPodAut
 	return rc.clientSet.AutoscalingV1().HorizontalPodAutoscalers(rc.nsName).Get(name, metav1.GetOptions{})
 }
 
-func (rc *ResourceConsumer) WaitForReplicas(desiredReplicas int, duration time.Duration) {
+func (rc *ResourceConsumer) GetHpaV2(name string) (*autoscalingv2.HorizontalPodAutoscaler, error) {
+	return rc.clientSet.AutoscalingV2beta2().HorizontalPodAutoscalers(rc.nsName).Get(name, metav1.GetOptions{})
+}
+
+func (rc *ResourceConsumer) WaitForReplicas(desiredReplicas int, duration time.Duration) time.Duration {
+	start := time.Now()
 	interval := 20 * time.Second
 	err := wait.PollImmediate(interval, duration, func() (bool, error) {
 		replicas := rc.GetReplicas()
@@ -370,6 +376,29 @@ func (rc *ResourceConsumer) WaitForReplicas(desiredReplicas int, duration time.D
 		return replicas == desiredReplicas, nil // Expected number of replicas found. Exit.
 	})
 	framework.ExpectNoErrorWithOffset(1, err, "timeout waiting %v for %d replicas", duration, desiredReplicas)
+	return time.Now().Sub(start)
+}
+
+func (rc *ResourceConsumer) WaitForHPADetectMetric(name string, cpuUtilization int32, duration time.Duration, lessThan bool) {
+	interval := 5 * time.Second
+	err := wait.PollImmediate(interval, duration, func() (bool, error) {
+		hpa, err := rc.GetHpaV2(name)
+		framework.ExpectNoError(err, "failed to get hpa: %s/%s", rc.nsName, name)
+		currentMetrics := hpa.Status.CurrentMetrics
+		if len(currentMetrics) == 1 && currentMetrics[0].Type == autoscalingv2.ResourceMetricSourceType && currentMetrics[0].Resource.Name == v1.ResourceCPU {
+			currentUtilization := *currentMetrics[0].Resource.Current.AverageUtilization
+			framework.Logf("Current utilization: %v %v %v", currentUtilization, cpuUtilization, lessThan)
+			if lessThan {
+				return currentUtilization <= cpuUtilization, nil
+			} else {
+				return currentUtilization >= cpuUtilization, nil
+			}
+		} else {
+			framework.Logf("No cpu utilization detected")
+		}
+		return false, nil
+	})
+	framework.ExpectNoError(err, "timeout waiting %v wait for hpa to detect %d as current metric", duration, cpuUtilization)
 }
 
 func (rc *ResourceConsumer) EnsureDesiredReplicas(desiredReplicas int, duration time.Duration, hpaName string) {
@@ -530,7 +559,7 @@ func runServiceAndWorkloadForResourceConsumer(c clientset.Interface, ns, name st
 		c, ns, controllerName, 1, startServiceInterval, startServiceTimeout))
 }
 
-func CreateCPUHorizontalPodAutoscaler(rc *ResourceConsumer, cpu, minReplicas, maxRepl int32) *autoscalingv1.HorizontalPodAutoscaler {
+func CreateCPUHorizontalPodAutoscalerV1(rc *ResourceConsumer, cpu, minReplicas, maxRepl int32) *autoscalingv1.HorizontalPodAutoscaler {
 	hpa := &autoscalingv1.HorizontalPodAutoscaler{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      rc.name,
@@ -554,4 +583,115 @@ func CreateCPUHorizontalPodAutoscaler(rc *ResourceConsumer, cpu, minReplicas, ma
 
 func DeleteHorizontalPodAutoscaler(rc *ResourceConsumer, autoscalerName string) {
 	rc.clientSet.AutoscalingV1().HorizontalPodAutoscalers(rc.nsName).Delete(autoscalerName, nil)
+}
+
+type HPACreator struct {
+	minReplicas    *int32
+	maxReplicas    *int32
+	cpuUtilization *int32
+	scaleUpRules   *autoscalingv2.HPAScalingRules
+	scaleDownRules *autoscalingv2.HPAScalingRules
+}
+
+func (c *HPACreator) MaxReplicas(replicas int32) *HPACreator {
+	c.maxReplicas = &replicas
+	return c
+}
+
+func (c *HPACreator) MinReplicas(replicas int32) *HPACreator {
+	c.minReplicas = &replicas
+	return c
+}
+
+func (c *HPACreator) CPUUtilization(utilization int32) *HPACreator {
+	c.cpuUtilization = &utilization
+	return c
+}
+
+func (c *HPACreator) ScaleUpPodPolicy(pods, period, stabilizationWindow int32) *HPACreator {
+	if c.scaleUpRules == nil {
+		c.scaleUpRules = &autoscalingv2.HPAScalingRules{}
+	}
+	c.scaleUpRules.Policies = append(c.scaleUpRules.Policies, autoscalingv2.HPAScalingPolicy{
+		PeriodSeconds: period, Value: pods, Type: autoscalingv2.PodsScalingPolicy,
+	})
+	c.scaleUpRules.StabilizationWindowSeconds = &stabilizationWindow
+	return c
+}
+
+func (c *HPACreator) ScaleUpPercentPolicy(percent, period, stabilizationWindow int32) *HPACreator {
+	if c.scaleUpRules == nil {
+		c.scaleUpRules = &autoscalingv2.HPAScalingRules{}
+	}
+	c.scaleUpRules.Policies = append(c.scaleUpRules.Policies, autoscalingv2.HPAScalingPolicy{
+		PeriodSeconds: period, Value: percent, Type: autoscalingv2.PercentScalingPolicy,
+	})
+	c.scaleUpRules.StabilizationWindowSeconds = &stabilizationWindow
+	return c
+}
+
+func (c *HPACreator) ScaleDownPodPolicy(pods, period, stabilizationWindow int32) *HPACreator {
+	if c.scaleDownRules == nil {
+		c.scaleDownRules = &autoscalingv2.HPAScalingRules{}
+	}
+	c.scaleDownRules.Policies = append(c.scaleDownRules.Policies, autoscalingv2.HPAScalingPolicy{
+		PeriodSeconds: period, Value: pods, Type: autoscalingv2.PodsScalingPolicy,
+	})
+	c.scaleDownRules.StabilizationWindowSeconds = &stabilizationWindow
+	return c
+}
+
+func (c *HPACreator) ScaleDownPercentPolicy(percent, period, stabilizationWindow int32) *HPACreator {
+	if c.scaleDownRules == nil {
+		c.scaleDownRules = &autoscalingv2.HPAScalingRules{}
+	}
+	c.scaleDownRules.Policies = append(c.scaleDownRules.Policies, autoscalingv2.HPAScalingPolicy{
+		PeriodSeconds: period, Value: percent, Type: autoscalingv2.PercentScalingPolicy,
+	})
+	c.scaleDownRules.StabilizationWindowSeconds = &stabilizationWindow
+	return c
+}
+
+func (c *HPACreator) Create(rc *ResourceConsumer) (*autoscalingv2.HorizontalPodAutoscaler, error) {
+	hpa := &autoscalingv2.HorizontalPodAutoscaler{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: rc.name,
+		},
+		Spec: autoscalingv2.HorizontalPodAutoscalerSpec{
+			ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{
+				Kind:       rc.kind.Kind,
+				Name:       rc.name,
+				APIVersion: rc.kind.GroupVersion().String(),
+			},
+		},
+	}
+	if c.maxReplicas == nil {
+		return nil, fmt.Errorf("maxReplicas is not set")
+	}
+	hpa.Spec.MaxReplicas = *c.maxReplicas
+	if c.minReplicas != nil {
+		hpa.Spec.MinReplicas = c.minReplicas
+	}
+	if c.cpuUtilization != nil {
+		hpa.Spec.Metrics = append(hpa.Spec.Metrics, autoscalingv2.MetricSpec{
+			Type: autoscalingv2.ResourceMetricSourceType,
+			Resource: &autoscalingv2.ResourceMetricSource{
+				Name: v1.ResourceCPU,
+				Target: autoscalingv2.MetricTarget{
+					Type:               autoscalingv2.UtilizationMetricType,
+					AverageUtilization: c.cpuUtilization,
+				},
+			},
+		})
+	}
+	if c.scaleUpRules != nil || c.scaleDownRules != nil {
+		hpa.Spec.Behavior = &autoscalingv2.HorizontalPodAutoscalerBehavior{}
+		if c.scaleUpRules != nil {
+			hpa.Spec.Behavior.ScaleUp = c.scaleUpRules
+		}
+		if c.scaleDownRules != nil {
+			hpa.Spec.Behavior.ScaleDown = c.scaleDownRules
+		}
+	}
+	return rc.clientSet.AutoscalingV2beta2().HorizontalPodAutoscalers(rc.nsName).Create(hpa)
 }
