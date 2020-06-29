@@ -116,6 +116,14 @@ type MetricSpec struct {
 	// to normal per-pod metrics using the "pods" source.
 	// +optional
 	Resource *ResourceMetricSource `json:"resource,omitempty" protobuf:"bytes,4,opt,name=resource"`
+	// container resource refers to a resource metric (such as those specified in
+	// requests and limits) known to Kubernetes describing a single container in
+	// each pod of the current scale target (e.g. CPU or memory). Such metrics are
+	// built in to Kubernetes, and have special scaling options on top of those
+	// available to normal per-pod metrics using the "pods" source.
+	// This is an alpha feature and can be enabled by the HPAContainerMetrics feature flag.
+	// +optional
+	ContainerResource *ContainerResourceMetricSource `json:"containerResource,omitempty" protobuf:"bytes,7,opt,name=containerResource"`
 	// external refers to a global metric that is not associated
 	// with any Kubernetes object. It allows autoscaling based on information
 	// coming from components running outside of cluster
@@ -220,6 +228,12 @@ const (
 	// Kubernetes, and have special scaling options on top of those available
 	// to normal per-pod metrics (the "pods" source).
 	ResourceMetricSourceType MetricSourceType = "Resource"
+	// ContainerResourceMetricSourceType is a resource metric known to Kubernetes, as
+	// specified in requests and limits, describing a single container in each pod in the current
+	// scale target (e.g. CPU or memory).  Such metrics are built in to
+	// Kubernetes, and have special scaling options on top of those available
+	// to normal per-pod metrics (the "pods" source).
+	ContainerResourceMetricSourceType MetricSourceType = "ContainerResource"
 	// ExternalMetricSourceType is a global metric that is not associated
 	// with any Kubernetes object. It allows autoscaling based on information
 	// coming from components running outside of cluster
@@ -261,6 +275,22 @@ type ResourceMetricSource struct {
 	Name v1.ResourceName `json:"name" protobuf:"bytes,1,name=name"`
 	// target specifies the target value for the given metric
 	Target MetricTarget `json:"target" protobuf:"bytes,2,name=target"`
+}
+
+// ContainerResourceMetricSource indicates how to scale on a resource metric known to
+// Kubernetes, as specified in requests and limits, describing each pod in the
+// current scale target (e.g. CPU or memory).  The values will be averaged
+// together before being compared to the target.  Such metrics are built in to
+// Kubernetes, and have special scaling options on top of those available to
+// normal per-pod metrics using the "pods" source.  Only one "target" type
+// should be set.
+type ContainerResourceMetricSource struct {
+	// name is the name of the resource in question.
+	Name v1.ResourceName `json:"name" protobuf:"bytes,1,name=name"`
+	// target specifies the target value for the given metric
+	Target MetricTarget `json:"target" protobuf:"bytes,2,name=target"`
+	// container is the name of the container in the pods of the scaling target
+	Container string `json:"container" protobuf:"bytes,3,opt,name=container"`
 }
 
 // ExternalMetricSource indicates how to scale on a metric not associated with
@@ -402,6 +432,13 @@ type MetricStatus struct {
 	// to normal per-pod metrics using the "pods" source.
 	// +optional
 	Resource *ResourceMetricStatus `json:"resource,omitempty" protobuf:"bytes,4,opt,name=resource"`
+	// container resource refers to a resource metric (such as those specified in
+	// requests and limits) known to Kubernetes describing a single container in each pod in the
+	// current scale target (e.g. CPU or memory). Such metrics are built in to
+	// Kubernetes, and have special scaling options on top of those available
+	// to normal per-pod metrics using the "pods" source.
+	// +optional
+	ContainerResource *ContainerResourceMetricStatus `json:"containerResource,omitempty" protobuf:"bytes,7,opt,name=containerResource"`
 	// external refers to a global metric that is not associated
 	// with any Kubernetes object. It allows autoscaling based on information
 	// coming from components running outside of cluster
@@ -441,6 +478,20 @@ type ResourceMetricStatus struct {
 	Name v1.ResourceName `json:"name" protobuf:"bytes,1,name=name"`
 	// current contains the current value for the given metric
 	Current MetricValueStatus `json:"current" protobuf:"bytes,2,name=current"`
+}
+
+// ContainerResourceMetricStatus indicates the current value of a resource metric known to
+// Kubernetes, as specified in requests and limits, describing a single container in each pod in the
+// current scale target (e.g. CPU or memory).  Such metrics are built in to
+// Kubernetes, and have special scaling options on top of those available to
+// normal per-pod metrics using the "pods" source.
+type ContainerResourceMetricStatus struct {
+	// Name is the name of the resource in question.
+	Name v1.ResourceName `json:"name" protobuf:"bytes,1,name=name"`
+	// current contains the current value for the given metric
+	Current MetricValueStatus `json:"current" protobuf:"bytes,2,name=current"`
+	// Container is the name of the container in the pods of the scaling target
+	Container string `json:"container" protobuf:"bytes,3,opt,name=container"`
 }
 
 // ExternalMetricStatus indicates the current value of a global metric
